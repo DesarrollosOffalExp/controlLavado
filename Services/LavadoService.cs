@@ -16,11 +16,50 @@ public class NuevoLavado
     public string? Incidencias { get; set; }
 }
 
+/// <summary>Recursos ocupados por lavados en curso (no se pueden volver a asignar).</summary>
+public class Disponibilidad
+{
+    public HashSet<string> PatentesOcupadas { get; } = new();
+    public HashSet<string> DarsenasOcupadas { get; } = new();
+    public HashSet<string> OperariosOcupados { get; } = new();
+}
+
 public class LavadoService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
 
     public LavadoService(IDbContextFactory<AppDbContext> factory) => _factory = factory;
+
+    /// <summary>
+    /// Devuelve qué patentes/dársenas/operarios están ocupados por lavados en curso.
+    /// Los operarios se consideran ocupados en cualquier proceso (camión u hielo);
+    /// patentes y dársenas, solo dentro del mismo tipo. <paramref name="excluirId"/>
+    /// permite ignorar un lavado (útil al editar uno propio).
+    /// </summary>
+    public async Task<Disponibilidad> DisponibilidadAsync(TipoLavado tipo, int? excluirId = null)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var activos = await db.Lavados
+            .Include(l => l.Operarios)
+            .Where(l => l.Estado != EstadoLavado.Finalizado)
+            .ToListAsync();
+
+        var d = new Disponibilidad();
+        foreach (var l in activos)
+        {
+            if (excluirId.HasValue && l.Id == excluirId.Value) continue;
+
+            foreach (var o in l.Operarios)
+                d.OperariosOcupados.Add(o.Nombre);
+
+            if (l.Tipo == tipo)
+            {
+                if (!string.IsNullOrEmpty(l.Patente)) d.PatentesOcupadas.Add(l.Patente);
+                if (!string.IsNullOrEmpty(l.Darsena)) d.DarsenasOcupadas.Add(l.Darsena!);
+            }
+        }
+        return d;
+    }
 
     public async Task<List<Lavado>> ListarAsync(TipoLavado tipo)
     {

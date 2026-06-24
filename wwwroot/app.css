@@ -108,6 +108,35 @@ textarea { resize: vertical; width: 100%; }
 .chip-on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .chip-on small { color: rgba(255,255,255,.8); }
 
+/* ---------- Tags de operarios seleccionados ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 6px 4px 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.tag button {
+    border: none;
+    background: rgba(255,255,255,.25);
+    color: #fff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    line-height: 1;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.tag button:hover { background: rgba(255,255,255,.45); }
+
 /* ---------- Buttons ---------- */
 .btn {
     border: none;

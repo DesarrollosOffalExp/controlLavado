@@ -11,7 +11,7 @@
                 <span>@(EsCamion ? "Patente de unidad" : "Equipo / sector")</span>
                 <select @bind="form.Patente">
                     <option value="">— elegir —</option>
-                    @foreach (var p in Patentes)
+                    @foreach (var p in PatentesDisponibles)
                     {
                         <option value="@p">@p</option>
                     }
@@ -24,7 +24,7 @@
                     <span>Dársena</span>
                     <select @bind="form.Darsena">
                         <option value="">— elegir —</option>
-                        @foreach (var d in Catalogo.Darsenas)
+                        @foreach (var d in DarsenasDisponibles)
                         {
                             <option value="@d">@d</option>
                         }
@@ -52,22 +52,28 @@
                 <span>Pallets</span>
                 <input type="number" min="0" @bind="form.Pallets" />
             </label>
+
+            <label>
+                <span>Operarios</span>
+                <select @key="@($"opnew-{comboKey}")" @onchange="e => AgregarOperario(form, e.Value?.ToString())">
+                    <option value="">+ agregar operario…</option>
+                    @foreach (var op in OperariosDisponibles(form, disp))
+                    {
+                        <option value="@op.Nombre">@op.Nombre (@op.Tipo)</option>
+                    }
+                </select>
+            </label>
         </div>
 
-        <div class="operarios">
-            <span class="operarios-titulo">Operarios</span>
-            <div class="chips">
-                @foreach (var op in Catalogo.Operarios)
+        @if (form.Operarios.Count > 0)
+        {
+            <div class="tags">
+                @foreach (var n in form.Operarios)
                 {
-                    var sel = form.Operarios.Contains(op.Nombre);
-                    <button type="button"
-                            class="chip @(sel ? "chip-on" : "")"
-                            @onclick="() => Toggle(form, op.Nombre)">
-                        @op.Nombre <small>@op.Tipo</small>
-                    </button>
+                    <span class="tag">@n <button type="button" @onclick="() => form.Operarios.Remove(n)">×</button></span>
                 }
             </div>
-        </div>
+        }
 
         <label class="full">
             <span>Incidencias generales</span>
@@ -137,7 +143,7 @@
                                     <label><span>Dársena</span>
                                         <select @bind="edit.Darsena">
                                             <option value="">—</option>
-                                            @foreach (var d in Catalogo.Darsenas)
+                                            @foreach (var d in DarsenasDisponiblesEdit)
                                             {
                                                 <option value="@d">@d</option>
                                             }
@@ -157,14 +163,24 @@
                                     <label><span>Tambores</span><input type="number" min="0" @bind="edit.Tambores" /></label>
                                     <label><span>Pallets</span><input type="number" min="0" @bind="edit.Pallets" /></label>
                                 </div>
-                                <div class="chips">
-                                    @foreach (var op in Catalogo.Operarios)
-                                    {
-                                        var sel = edit.Operarios.Contains(op.Nombre);
-                                        <button type="button" class="chip @(sel ? "chip-on" : "")"
-                                                @onclick="() => Toggle(edit, op.Nombre)">@op.Nombre</button>
-                                    }
-                                </div>
+                                <label><span>Operarios</span>
+                                    <select @key="@($"opedit-{comboKey}")" @onchange="e => AgregarOperario(edit, e.Value?.ToString())">
+                                        <option value="">+ agregar operario…</option>
+                                        @foreach (var op in OperariosDisponibles(edit, dispEdit))
+                                        {
+                                            <option value="@op.Nombre">@op.Nombre (@op.Tipo)</option>
+                                        }
+                                    </select>
+                                </label>
+                                @if (edit.Operarios.Count > 0)
+                                {
+                                    <div class="tags">
+                                        @foreach (var n in edit.Operarios)
+                                        {
+                                            <span class="tag">@n <button type="button" @onclick="() => edit.Operarios.Remove(n)">×</button></span>
+                                        }
+                                    </div>
+                                }
                                 <textarea rows="2" @bind="edit.Incidencias" placeholder="Incidencias…"></textarea>
                                 <div class="curso-actions">
                                     <button class="btn btn-primary" @onclick="GuardarEdicion">Guardar</button>
@@ -293,17 +309,37 @@
     private int? editId;
     private string? error;
 
+    private Disponibilidad disp = new();      // para el formulario "nuevo"
+    private Disponibilidad dispEdit = new();   // para el lavado en edición (excluye el propio)
+    private int comboKey;                      // fuerza el reset visual del combo de operarios
+
     protected override async Task OnParametersSetAsync() => await Recargar();
 
     private async Task Recargar()
     {
         enCurso = await Svc.EnCursoAsync(Tipo);
         historial = await Svc.ListarAsync(Tipo);
+        disp = await Svc.DisponibilidadAsync(Tipo);
     }
 
-    private void Toggle(FormModel m, string nombre)
+    // ---- Disponibilidad ----
+    private IEnumerable<string> PatentesDisponibles =>
+        Patentes.Where(p => !disp.PatentesOcupadas.Contains(p));
+
+    private IEnumerable<string> DarsenasDisponibles =>
+        Catalogo.Darsenas.Where(d => !disp.DarsenasOcupadas.Contains(d));
+
+    private IEnumerable<string> DarsenasDisponiblesEdit =>
+        Catalogo.Darsenas.Where(d => !dispEdit.DarsenasOcupadas.Contains(d));
+
+    private IEnumerable<OperarioCatalogo> OperariosDisponibles(FormModel m, Disponibilidad d) =>
+        Catalogo.Operarios.Where(o => !d.OperariosOcupados.Contains(o.Nombre) && !m.Operarios.Contains(o.Nombre));
+
+    private void AgregarOperario(FormModel m, string? nombre)
     {
-        if (!m.Operarios.Remove(nombre)) m.Operarios.Add(nombre);
+        if (!string.IsNullOrEmpty(nombre) && !m.Operarios.Contains(nombre))
+            m.Operarios.Add(nombre);
+        comboKey++; // recrea el <select> para que vuelva a "+ agregar operario…"
     }
 
     private async Task Iniciar()
@@ -312,6 +348,11 @@
         if (string.IsNullOrWhiteSpace(form.Patente))
         {
             error = EsCamion ? "Elegí una patente." : "Elegí un equipo.";
+            return;
+        }
+        if (EsCamion && string.IsNullOrWhiteSpace(form.Darsena))
+        {
+            error = "Elegí una dársena.";
             return;
         }
         await Svc.IniciarAsync(Tipo, form.ToDto());
@@ -325,7 +366,7 @@
         await Recargar();
     }
 
-    private void Editar(Lavado l)
+    private async Task Editar(Lavado l)
     {
         editId = l.Id;
         edit = new FormModel
@@ -337,6 +378,7 @@
             Incidencias = l.Incidencias,
             Operarios = l.Operarios.Select(o => o.Nombre).ToList(),
         };
+        dispEdit = await Svc.DisponibilidadAsync(Tipo, excluirId: l.Id);
     }
 
     private async Task GuardarEdicion()
