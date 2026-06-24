@@ -96,6 +96,7 @@ public class LavadoService
             Incidencias = datos.Incidencias,
             Fecha = DateOnly.FromDateTime(ahora),
             CreadoEn = ahora,
+            OperariosPorSemana = datos.Operarios.Count,
             Operarios = datos.Operarios
                 .Select(n => new LavadoOperario { Nombre = n, Tipo = Catalogo.TipoDe(n) })
                 .ToList(),
@@ -182,6 +183,7 @@ public class LavadoService
         l.Operarios.Clear();
         foreach (var n in datos.Operarios)
             l.Operarios.Add(new LavadoOperario { Nombre = n, Tipo = Catalogo.TipoDe(n) });
+        l.OperariosPorSemana = datos.Operarios.Count;
 
         await db.SaveChangesAsync();
     }

@@ -46,6 +46,12 @@ public class Lavado
     [MaxLength(30)]
     public string Estado { get; set; } = EstadoLavado.Pendiente;
 
+    /// <summary>
+    /// Operarios por semana (= cantidad de operarios del lavado). Se persiste en la
+    /// tabla SQL pero NO se muestra en la grilla.
+    /// </summary>
+    public int OperariosPorSemana { get; set; }
+
     /// <summary>Marca temporal: cuándo se cerró/finalizó el registro.</summary>
     public DateTime? Finalizado { get; set; }
 
