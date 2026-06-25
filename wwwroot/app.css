@@ -159,6 +159,11 @@ textarea { resize: vertical; width: 100%; }
 .btn-danger { background: var(--danger); color: #fff; padding: 11px 14px; }
 .btn-block { width: 100%; }
 
+/* Botón de acción según el estadio actual del lavado */
+.btn-estado-Atracado { background: #e07b39; color: #fff; }         /* Atracado → naranja */
+.btn-estado-Lavando { background: var(--accent); color: #fff; }    /* Lavando → verde */
+.btn-estado-Lavadoterminado { background: #6b59c9; color: #fff; }  /* Lavado terminado → violeta (próximo: desatraco) */
+
 .error { color: var(--danger); font-weight: 600; margin: 6px 0; }
 .muted { color: var(--muted); }
 

@@ -136,7 +136,7 @@
                         <div class="curso-actions">
                             @if (next is not null)
                             {
-                                <button class="btn btn-primary" @onclick="() => Avanzar(l.Id)">@next</button>
+                                <button class="btn btn-estado-@l.Estado.Replace(" ", "")" @onclick="() => Avanzar(l.Id)">@next</button>
                             }
                             <button class="btn btn-ghost" @onclick="() => Editar(l)">Editar</button>
                             <button class="btn btn-danger" @onclick="() => Eliminar(l.Id)">✕</button>
