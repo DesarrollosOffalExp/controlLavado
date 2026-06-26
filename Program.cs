@@ -18,6 +18,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 builder.Services.AddScoped<LavadoService>();
 builder.Services.AddScoped<ReporteService>();
 builder.Services.AddScoped<CatalogoService>();
+builder.Services.AddScoped<ImportacionService>();
 
 var app = builder.Build();
 

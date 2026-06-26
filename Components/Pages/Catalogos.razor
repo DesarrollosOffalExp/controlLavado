@@ -1,6 +1,7 @@
 @page "/catalogos"
 @rendermode InteractiveServer
 @inject CatalogoService Cat
+@inject ImportacionService Imp
 
 <PageTitle>Configuración</PageTitle>
 
@@ -10,6 +11,30 @@
 </header>
 
 <div class="panel">
+
+    <!-- ===== IMPORTAR FORMS ===== -->
+    <section class="card">
+        <h2>Importar respuestas del Forms</h2>
+        <p class="muted">Lee la hoja «Respuestas de formulario 1» y agrega los lavados a la reportería. Omite los que ya existan (misma patente y hora de atraco).</p>
+        <div class="form-grid">
+            <label style="grid-column:1/-1"><span>Ruta del archivo (.xlsx) en el servidor</span>
+                <input @bind="rutaImport" placeholder="C:\...\Registro de lavadero.xlsx" />
+            </label>
+        </div>
+        <div class="curso-actions">
+            <button class="btn btn-primary" @onclick="ImportarRuta" disabled="@importando">
+                @(importando ? "Importando…" : "Importar desde ruta")
+            </button>
+            <label class="btn btn-ghost" style="cursor:pointer">
+                Subir archivo…
+                <InputFile OnChange="ImportarArchivo" accept=".xlsx" style="display:none" />
+            </label>
+        </div>
+        @if (resultadoImport is not null)
+        {
+            <p class="@(resultadoOk ? "muted" : "error")" style="margin-top:10px">@resultadoImport</p>
+        }
+    </section>
 
     <!-- ===== OPERARIOS ===== -->
     <section class="card">
@@ -120,6 +145,41 @@
     private Patente patEdit = new();
     private Frigorifico frigEdit = new();
     private string? errorOp, errorPat, errorFrig;
+
+    // Importación
+    private string rutaImport = @"C:\Users\roberto.sanabria\Downloads\Registro de lavadero.xlsx";
+    private bool importando;
+    private bool resultadoOk;
+    private string? resultadoImport;
+
+    private async Task ImportarRuta()
+    {
+        importando = true; resultadoImport = null;
+        Mostrar(await Imp.ImportarDesdeArchivoAsync(rutaImport));
+        importando = false;
+    }
+
+    private async Task ImportarArchivo(InputFileChangeEventArgs e)
+    {
+        importando = true; resultadoImport = null;
+        try
+        {
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024).CopyToAsync(ms);
+            ms.Position = 0;
+            Mostrar(await Imp.ImportarAsync(ms));
+        }
+        catch (Exception ex) { resultadoOk = false; resultadoImport = "Error: " + ex.Message; }
+        importando = false;
+    }
+
+    private void Mostrar(ImportacionResultado res)
+    {
+        resultadoOk = res.Ok;
+        resultadoImport = res.Ok
+            ? $"Listo: {res.Importados} lavados importados, {res.Omitidos} omitidos por duplicado (de {res.FilasLeidas} filas válidas)."
+            : "Error: " + res.Error;
+    }
 
     protected override async Task OnInitializedAsync() => await Cargar();
 
