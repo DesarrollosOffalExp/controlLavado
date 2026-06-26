@@ -196,7 +196,7 @@ public class ReporteService
 
     private static void EscribirResumenOperario(IXLWorksheet ws, List<OperarioResumen> filas)
     {
-        string[] h = { "Operario", "Tipo", "Camiones", "Lavados", "Días trab.", "Hs trabajadas", "Prom. lavado" };
+        string[] h = { "Operario", "Tipo", "Lavados", "Días trab.", "Hs trabajadas", "Prom. lavado" };
         for (int c = 0; c < h.Length; c++)
             ws.Cell(1, c + 1).Value = h[c];
         ws.Range(1, 1, 1, h.Length).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.LightGray);
@@ -206,11 +206,10 @@ public class ReporteService
         {
             ws.Cell(row, 1).Value = r.Operario;
             ws.Cell(row, 2).Value = r.Tipo.ToString();
-            ws.Cell(row, 3).Value = r.Camiones;
-            ws.Cell(row, 4).Value = r.Lavados;
-            ws.Cell(row, 5).Value = r.DiasTrabajados;
-            ws.Cell(row, 6).Value = FmtDur(r.Horas);
-            ws.Cell(row, 7).Value = FmtDur(r.Promedio);
+            ws.Cell(row, 3).Value = r.Lavados;
+            ws.Cell(row, 4).Value = r.DiasTrabajados;
+            ws.Cell(row, 5).Value = FmtDur(r.Horas);
+            ws.Cell(row, 6).Value = FmtDur(r.Promedio);
             row++;
         }
         ws.SheetView.FreezeRows(1);
@@ -219,7 +218,7 @@ public class ReporteService
 
     private static void EscribirResumenMes(IXLWorksheet ws, List<OperarioMesResumen> filas)
     {
-        string[] h = { "Mes", "Operario", "Camiones", "Lavados", "Días trab.", "Hs trabajadas", "Prom. lavado" };
+        string[] h = { "Mes", "Operario", "Lavados", "Días trab.", "Hs trabajadas", "Prom. lavado" };
         for (int c = 0; c < h.Length; c++)
             ws.Cell(1, c + 1).Value = h[c];
         ws.Range(1, 1, 1, h.Length).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.LightGray);
@@ -229,11 +228,10 @@ public class ReporteService
         {
             ws.Cell(row, 1).Value = r.Mes;
             ws.Cell(row, 2).Value = r.Operario;
-            ws.Cell(row, 3).Value = r.Camiones;
-            ws.Cell(row, 4).Value = r.Lavados;
-            ws.Cell(row, 5).Value = r.DiasTrabajados;
-            ws.Cell(row, 6).Value = FmtDur(r.Horas);
-            ws.Cell(row, 7).Value = FmtDur(r.Promedio);
+            ws.Cell(row, 3).Value = r.Lavados;
+            ws.Cell(row, 4).Value = r.DiasTrabajados;
+            ws.Cell(row, 5).Value = FmtDur(r.Horas);
+            ws.Cell(row, 6).Value = FmtDur(r.Promedio);
             row++;
         }
         ws.SheetView.FreezeRows(1);
