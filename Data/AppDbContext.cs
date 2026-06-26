@@ -9,6 +9,9 @@ public class AppDbContext : DbContext
 
     public DbSet<Lavado> Lavados => Set<Lavado>();
     public DbSet<LavadoOperario> LavadoOperarios => Set<LavadoOperario>();
+    public DbSet<Operario> Operarios => Set<Operario>();
+    public DbSet<Patente> Patentes => Set<Patente>();
+    public DbSet<Frigorifico> Frigorificos => Set<Frigorifico>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,5 +29,7 @@ public class AppDbContext : DbContext
         {
             e.Property(o => o.Tipo).HasConversion<int>();
         });
+
+        modelBuilder.Entity<Operario>(e => e.Property(o => o.Tipo).HasConversion<int>());
     }
 }

@@ -1,17 +1,19 @@
 namespace ControlLavados.Models;
 
-/// <summary>Tipo de proceso de lavado.</summary>
+/// <summary>Tipo de proceso de lavado / circuito.</summary>
 public enum TipoLavado
 {
     Camion = 0,
-    Hielo = 1
+    Hielo = 1,
+    Hiel = 2,
+    Varias = 3
 }
 
 /// <summary>Origen del operario, usado para los contadores de la grilla.</summary>
 public enum TipoOperario
 {
     Offal = 0,
-    Agencia = 1
+    Contrato = 1
 }
 
 /// <summary>
@@ -35,12 +37,13 @@ public static class Turnos
     public const string Tarde = "Tarde";
     public const string Noche = "Noche";
 
-    /// <summary>Antes de 14:00 = Mañana, 14:00–20:59 = Tarde, resto = Noche.</summary>
+    /// <summary>
+    /// Mañana: 06:00–18:59. Tarde: 19:00–05:59 (incluye la madrugada).
+    /// Operación de dos turnos: todo lo que no es Mañana es Tarde.
+    /// </summary>
     public static string DesdeHora(DateTime hora)
     {
         var h = hora.Hour;
-        if (h < 14) return Mañana;
-        if (h < 21) return Tarde;
-        return Noche;
+        return (h >= 6 && h <= 18) ? Mañana : Tarde;
     }
 }

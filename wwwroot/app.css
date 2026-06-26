@@ -201,6 +201,8 @@ textarea { resize: vertical; width: 100%; }
 .grilla tr:hover td { background: rgba(255,255,255,.02); }
 .grilla .num { text-align: right; font-variant-numeric: tabular-nums; }
 .grilla .ops { white-space: normal; min-width: 160px; max-width: 240px; }
+.grilla .acciones { display: flex; gap: 6px; }
+.grilla .btn { min-height: 32px; padding: 5px 10px; font-size: 13px; }
 
 /* ---------- Mobile (celulares) ---------- */
 @media (max-width: 640px) {

@@ -1,5 +1,6 @@
 @using System.Globalization
 @inject LavadoService Svc
+@inject CatalogoService Cat
 
 <div class="panel">
 
@@ -35,9 +36,9 @@
                     <span>Frigorífico</span>
                     <select @bind="form.Frigorifico">
                         <option value="">— elegir —</option>
-                        @foreach (var f in Catalogo.Frigorificos)
+                        @foreach (var f in frigorificos)
                         {
-                            <option value="@f">@f</option>
+                            <option value="@f.Nombre">@f.Nombre</option>
                         }
                     </select>
                 </label>
@@ -56,7 +57,7 @@
             {
                 <label>
                     <span>Equipo / sector</span>
-                    <input type="text" value="@Catalogo.SectorHielo" disabled />
+                    <input type="text" value="@Catalogo.SectorDe(Tipo)" disabled />
                 </label>
             }
 
@@ -66,7 +67,7 @@
                     <option value="">+ agregar operario…</option>
                     @foreach (var op in OperariosDisponibles(form, disp))
                     {
-                        <option value="@op.Nombre">@op.Nombre (@op.Tipo)</option>
+                        <option value="@op.NombreCompleto">@op.NombreCompleto (@op.Tipo)</option>
                     }
                 </select>
             </label>
@@ -160,9 +161,9 @@
                                 <label><span>Frigorífico</span>
                                     <select @bind="edit.Frigorifico">
                                         <option value="">—</option>
-                                        @foreach (var f in Catalogo.Frigorificos)
+                                        @foreach (var f in frigorificos)
                                         {
-                                            <option value="@f">@f</option>
+                                            <option value="@f.Nombre">@f.Nombre</option>
                                         }
                                     </select>
                                 </label>
@@ -175,7 +176,7 @@
                                         <option value="">+ agregar operario…</option>
                                         @foreach (var op in OperariosDisponibles(edit, dispEdit))
                                         {
-                                            <option value="@op.Nombre">@op.Nombre (@op.Tipo)</option>
+                                            <option value="@op.NombreCompleto">@op.NombreCompleto (@op.Tipo)</option>
                                         }
                                     </select>
                                 </label>
@@ -212,7 +213,7 @@
                         <th>Fecha</th>
                         <th>Turno</th>
                         <th>N° Offal</th>
-                        <th>N° Agencia</th>
+                        <th>N° Contrato</th>
                         <th>Op. por fecha</th>
                         <th>@(EsCamion ? "Patente" : "Equipo")</th>
                         @if (EsCamion)
@@ -257,7 +258,7 @@
                             <td>@l.Fecha.ToString("dd/MM/yyyy")</td>
                             <td>@l.Turno</td>
                             <td class="num">@l.NumOffal</td>
-                            <td class="num">@l.NumAgencia</td>
+                            <td class="num">@l.NumContrato</td>
                             <td class="num">@l.OperariosUsados</td>
                             <td>@l.Patente</td>
                             @if (EsCamion)
@@ -304,10 +305,14 @@
     [Parameter, EditorRequired] public TipoLavado Tipo { get; set; }
 
     private bool EsCamion => Tipo == TipoLavado.Camion;
-    private string[] Patentes => Catalogo.PatentesCamion; // solo se usa en la pantalla de camiones
 
     private List<Lavado> enCurso = new();
     private List<Lavado> historial = new();
+
+    // Catálogos cargados desde la BD (solo activos).
+    private List<Operario> operarios = new();
+    private List<Patente> patentes = new();
+    private List<Frigorifico> frigorificos = new();
 
     private FormModel form = new();
     private FormModel edit = new();
@@ -320,14 +325,18 @@
 
     protected override void OnInitialized()
     {
-        // En hielo el sector es siempre fijo.
-        if (!EsCamion) form.Patente = Catalogo.SectorHielo;
+        // En los circuitos que no son camión el sector es fijo.
+        if (!EsCamion) form.Patente = Catalogo.SectorDe(Tipo);
     }
 
     protected override async Task OnParametersSetAsync() => await Recargar();
 
     private async Task Recargar()
     {
+        operarios = await Cat.OperariosAsync(soloActivos: true);
+        patentes = await Cat.PatentesAsync(soloActivos: true);
+        frigorificos = await Cat.FrigorificosAsync(soloActivos: true);
+
         enCurso = await Svc.EnCursoAsync(Tipo);
         // La grilla muestra únicamente los lavados que todavía no se finalizaron.
         historial = (await Svc.ListarAsync(Tipo))
@@ -338,7 +347,7 @@
 
     // ---- Disponibilidad ----
     private IEnumerable<string> PatentesDisponibles =>
-        Patentes.Where(p => !disp.PatentesOcupadas.Contains(p));
+        patentes.Select(p => p.Codigo).Where(c => !disp.PatentesOcupadas.Contains(c));
 
     private IEnumerable<string> DarsenasDisponibles =>
         Catalogo.Darsenas.Where(d => !disp.DarsenasOcupadas.Contains(d));
@@ -346,8 +355,8 @@
     private IEnumerable<string> DarsenasDisponiblesEdit =>
         Catalogo.Darsenas.Where(d => !dispEdit.DarsenasOcupadas.Contains(d));
 
-    private IEnumerable<OperarioCatalogo> OperariosDisponibles(FormModel m, Disponibilidad d) =>
-        Catalogo.Operarios.Where(o => !d.OperariosOcupados.Contains(o.Nombre) && !m.Operarios.Contains(o.Nombre));
+    private IEnumerable<Operario> OperariosDisponibles(FormModel m, Disponibilidad d) =>
+        operarios.Where(o => !d.OperariosOcupados.Contains(o.NombreCompleto) && !m.Operarios.Contains(o.NombreCompleto));
 
     private void AgregarOperario(FormModel m, string? nombre)
     {
@@ -382,7 +391,7 @@
         }
 
         form = new();
-        if (!EsCamion) form.Patente = Catalogo.SectorHielo;
+        if (!EsCamion) form.Patente = Catalogo.SectorDe(Tipo);
         await Recargar();
     }
 

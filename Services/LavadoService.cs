@@ -111,6 +111,7 @@ public class LavadoService
         if (enConflicto.Count > 0)
             return new(false, $"Operario(s) ya asignado(s) a otro lavado: {string.Join(", ", enConflicto)}.", null);
 
+        var tipoDe = await ResolverTipoOperarioAsync(db);
         var ahora = DateTime.Now;
         var lavado = new Lavado
         {
@@ -125,7 +126,7 @@ public class LavadoService
             CreadoEn = ahora,
             OperariosPorSemana = datos.Operarios.Count,
             Operarios = datos.Operarios
-                .Select(n => new LavadoOperario { Nombre = n, Tipo = Catalogo.TipoDe(n) })
+                .Select(n => new LavadoOperario { Nombre = n, Tipo = tipoDe(n) })
                 .ToList(),
         };
 
@@ -206,12 +207,22 @@ public class LavadoService
         l.Frigorifico = datos.Frigorifico;
         if (l.Tipo == TipoLavado.Camion) l.Darsena = datos.Darsena;
 
+        var tipoDe = await ResolverTipoOperarioAsync(db);
         l.Operarios.Clear();
         foreach (var n in datos.Operarios)
-            l.Operarios.Add(new LavadoOperario { Nombre = n, Tipo = Catalogo.TipoDe(n) });
+            l.Operarios.Add(new LavadoOperario { Nombre = n, Tipo = tipoDe(n) });
         l.OperariosPorSemana = datos.Operarios.Count;
 
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>Devuelve una función que mapea el nombre completo del operario a su tipo (Offal/Contrato).</summary>
+    private static async Task<Func<string, TipoOperario>> ResolverTipoOperarioAsync(AppDbContext db)
+    {
+        var ops = await db.Operarios.ToListAsync();
+        var map = new Dictionary<string, TipoOperario>();
+        foreach (var o in ops) map[o.NombreCompleto] = o.Tipo;
+        return n => map.TryGetValue(n, out var t) ? t : TipoOperario.Contrato;
     }
 
     public async Task EliminarAsync(int id)

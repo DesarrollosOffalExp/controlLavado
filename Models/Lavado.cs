@@ -82,7 +82,7 @@ public class Lavado
     public int NumOffal => Operarios.Count(o => o.Tipo == TipoOperario.Offal);
 
     [NotMapped]
-    public int NumAgencia => Operarios.Count(o => o.Tipo == TipoOperario.Agencia);
+    public int NumContrato => Operarios.Count(o => o.Tipo == TipoOperario.Contrato);
 
     [NotMapped]
     public int OperariosUsados => Operarios.Count;

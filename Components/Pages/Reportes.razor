@@ -19,6 +19,8 @@
                 <select @bind="tipoSel" @bind:after="Cargar">
                     <option value="Camion">Camiones</option>
                     <option value="Hielo">Fábrica de Hielo</option>
+                    <option value="Hiel">Hiel</option>
+                    <option value="Varias">Varias</option>
                     <option value="Todos">Todos</option>
                 </select>
             </label>
@@ -143,6 +145,8 @@
     {
         "Camion" => TipoLavado.Camion,
         "Hielo" => TipoLavado.Hielo,
+        "Hiel" => TipoLavado.Hiel,
+        "Varias" => TipoLavado.Varias,
         _ => null,
     };
 

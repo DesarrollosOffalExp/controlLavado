@@ -54,30 +54,35 @@ public class ReporteService
             var delTurno = lavados.Where(l => l.Turno == turno).ToList();
             if (delTurno.Count == 0) continue;
 
+            // Totales base por semana (sin variación todavía).
+            var baseSemana = delTurno
+                .GroupBy(l => l.Semana)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (
+                        Cant: g.Count(),
+                        Total: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.TiempoTotal ?? TimeSpan.Zero)),
+                        TotalOp: g.Sum(l => l.OperariosUsados)));
+
             var semanas = new List<MetricaSemana>();
-            MetricaSemana? previa = null;
-
-            foreach (var grupo in delTurno.GroupBy(l => l.Semana).OrderBy(g => g.Key))
+            foreach (var semana in baseSemana.Keys.OrderBy(k => k))
             {
-                var items = grupo.ToList();
-                var totalHoras = items.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.TiempoTotal ?? TimeSpan.Zero));
-                var cant = items.Count;
-                var totalOp = items.Sum(l => l.OperariosUsados);
+                var cur = baseSemana[semana];
 
-                double? varHoras = previa is { TotalHoras.Ticks: > 0 }
-                    ? (totalHoras.TotalSeconds - previa.TotalHoras.TotalSeconds) / previa.TotalHoras.TotalSeconds
-                    : null;
-                double? varLav = previa is { Lavados: > 0 }
-                    ? (double)(cant - previa.Lavados) / previa.Lavados
-                    : null;
+                // Variación SOLO contra la semana inmediatamente anterior (N-1), si tiene datos.
+                double? varHoras = null, varLav = null;
+                if (baseSemana.TryGetValue(semana - 1, out var prev))
+                {
+                    if (prev.Total.Ticks > 0)
+                        varHoras = (cur.Total.TotalSeconds - prev.Total.TotalSeconds) / prev.Total.TotalSeconds;
+                    if (prev.Cant > 0)
+                        varLav = (double)(cur.Cant - prev.Cant) / prev.Cant;
+                }
 
-                var m = new MetricaSemana(
-                    grupo.Key, cant, totalHoras,
-                    TimeSpan.FromSeconds(totalHoras.TotalSeconds / cant),
-                    totalOp, (double)totalOp / cant, varHoras, varLav);
-
-                semanas.Add(m);
-                previa = m;
+                semanas.Add(new MetricaSemana(
+                    semana, cur.Cant, cur.Total,
+                    TimeSpan.FromSeconds(cur.Total.TotalSeconds / cur.Cant),
+                    cur.TotalOp, (double)cur.TotalOp / cur.Cant, varHoras, varLav));
             }
 
             resultado.Add(new MetricasTurno(turno, semanas));
@@ -203,10 +208,10 @@ public class ReporteService
     {
         var soloCamion = tipo == TipoLavado.Camion;
         string[] headers = soloCamion
-            ? new[] { "Marca temporal", "Fecha", "Turno", "N° Offal", "N° Agencia", "Patente", "Dársena", "Frigorífico",
+            ? new[] { "Marca temporal", "Fecha", "Turno", "N° Offal", "N° Contrato", "Patente", "Dársena", "Frigorífico",
                       "Tambores", "Pallets", "Operarios", "Inicio Atraco", "Inicio Lavado", "Fin Lavado", "Desatraco",
                       "Atraco→Lavado", "Lavado", "Fin→Desatraco", "Total", "Semana", "Op. usados", "Incidencias", "Estado" }
-            : new[] { "Marca temporal", "Fecha", "Turno", "N° Offal", "N° Agencia", "Tipo", "Equipo/Patente",
+            : new[] { "Marca temporal", "Fecha", "Turno", "N° Offal", "N° Contrato", "Tipo", "Equipo/Patente",
                       "Operarios", "Inicio Lavado", "Fin Lavado", "Total", "Semana", "Op. usados", "Incidencias", "Estado" };
 
         for (int c = 0; c < headers.Length; c++)
@@ -223,7 +228,7 @@ public class ReporteService
             ws.Cell(row, c++).Value = l.Fecha.ToString("dd/MM/yyyy");
             ws.Cell(row, c++).Value = l.Turno;
             ws.Cell(row, c++).Value = l.NumOffal;
-            ws.Cell(row, c++).Value = l.NumAgencia;
+            ws.Cell(row, c++).Value = l.NumContrato;
             if (soloCamion)
             {
                 ws.Cell(row, c++).Value = l.Patente;

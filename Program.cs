@@ -17,6 +17,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 builder.Services.AddScoped<LavadoService>();
 builder.Services.AddScoped<ReporteService>();
+builder.Services.AddScoped<CatalogoService>();
 
 var app = builder.Build();
 
@@ -26,6 +27,7 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
     using var db = factory.CreateDbContext();
     db.Database.EnsureCreated();
+    CatalogoService.Seed(db);
 }
 
 // Configure the HTTP request pipeline.

@@ -1,0 +1,173 @@
+@page "/catalogos"
+@rendermode InteractiveServer
+@inject CatalogoService Cat
+
+<PageTitle>Catálogos</PageTitle>
+
+<header class="page-head">
+    <h1>Catálogos</h1>
+    <p>Alta, baja y modificación de operarios, patentes y frigoríficos</p>
+</header>
+
+<div class="panel">
+
+    <!-- ===== OPERARIOS ===== -->
+    <section class="card">
+        <h2>Operarios (@ops.Count)</h2>
+        <div class="form-grid">
+            <label><span>Apellido</span><input @bind="opEdit.Apellido" /></label>
+            <label><span>Nombre</span><input @bind="opEdit.Nombre" /></label>
+            <label><span>DNI</span><input @bind="opEdit.Dni" /></label>
+            <label><span>Tipo</span>
+                <select @bind="opEdit.Tipo">
+                    <option value="Offal">Offal</option>
+                    <option value="Contrato">Contrato</option>
+                </select>
+            </label>
+        </div>
+        @if (errorOp is not null) { <p class="error">@errorOp</p> }
+        <div class="curso-actions">
+            <button class="btn btn-primary" @onclick="GuardarOp">@(opEdit.Id == 0 ? "Agregar" : "Guardar cambios")</button>
+            @if (opEdit.Id != 0) { <button class="btn btn-ghost" @onclick="() => opEdit = new()">Cancelar</button> }
+        </div>
+        <div class="tabla-scroll" style="margin-top:14px">
+            <table class="grilla">
+                <thead><tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Tipo</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var o in ops)
+                    {
+                        <tr style="@(o.Activo ? "" : "opacity:.5")">
+                            <td>@o.Apellido</td><td>@o.Nombre</td><td>@o.Dni</td><td>@o.Tipo</td>
+                            <td>@(o.Activo ? "Activo" : "Baja")</td>
+                            <td class="acciones">
+                                <button class="btn btn-ghost" @onclick="() => EditarOp(o)">Editar</button>
+                                <button class="btn btn-ghost" @onclick="() => ToggleOp(o.Id)">@(o.Activo ? "Dar de baja" : "Activar")</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ===== PATENTES ===== -->
+    <section class="card">
+        <h2>Patentes (@pats.Count)</h2>
+        <div class="form-grid">
+            <label><span>Código</span><input @bind="patEdit.Codigo" placeholder="Ej: AC356EI" /></label>
+        </div>
+        @if (errorPat is not null) { <p class="error">@errorPat</p> }
+        <div class="curso-actions">
+            <button class="btn btn-primary" @onclick="GuardarPat">@(patEdit.Id == 0 ? "Agregar" : "Guardar cambios")</button>
+            @if (patEdit.Id != 0) { <button class="btn btn-ghost" @onclick="() => patEdit = new()">Cancelar</button> }
+        </div>
+        <div class="tabla-scroll" style="margin-top:14px">
+            <table class="grilla">
+                <thead><tr><th>Código</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var p in pats)
+                    {
+                        <tr style="@(p.Activo ? "" : "opacity:.5")">
+                            <td>@p.Codigo</td><td>@(p.Activo ? "Activo" : "Baja")</td>
+                            <td class="acciones">
+                                <button class="btn btn-ghost" @onclick="() => patEdit = new Patente { Id = p.Id, Codigo = p.Codigo, Activo = p.Activo }">Editar</button>
+                                <button class="btn btn-ghost" @onclick="() => TogglePat(p.Id)">@(p.Activo ? "Dar de baja" : "Activar")</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ===== FRIGORÍFICOS ===== -->
+    <section class="card">
+        <h2>Frigoríficos (@frigs.Count)</h2>
+        <div class="form-grid">
+            <label><span>Nombre</span><input @bind="frigEdit.Nombre" /></label>
+        </div>
+        @if (errorFrig is not null) { <p class="error">@errorFrig</p> }
+        <div class="curso-actions">
+            <button class="btn btn-primary" @onclick="GuardarFrig">@(frigEdit.Id == 0 ? "Agregar" : "Guardar cambios")</button>
+            @if (frigEdit.Id != 0) { <button class="btn btn-ghost" @onclick="() => frigEdit = new()">Cancelar</button> }
+        </div>
+        <div class="tabla-scroll" style="margin-top:14px">
+            <table class="grilla">
+                <thead><tr><th>Nombre</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var f in frigs)
+                    {
+                        <tr style="@(f.Activo ? "" : "opacity:.5")">
+                            <td>@f.Nombre</td><td>@(f.Activo ? "Activo" : "Baja")</td>
+                            <td class="acciones">
+                                <button class="btn btn-ghost" @onclick="() => frigEdit = new Frigorifico { Id = f.Id, Nombre = f.Nombre, Activo = f.Activo }">Editar</button>
+                                <button class="btn btn-ghost" @onclick="() => ToggleFrig(f.Id)">@(f.Activo ? "Dar de baja" : "Activar")</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+@code {
+    private List<Operario> ops = new();
+    private List<Patente> pats = new();
+    private List<Frigorifico> frigs = new();
+
+    private Operario opEdit = new();
+    private Patente patEdit = new();
+    private Frigorifico frigEdit = new();
+    private string? errorOp, errorPat, errorFrig;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        ops = await Cat.OperariosAsync();
+        pats = await Cat.PatentesAsync();
+        frigs = await Cat.FrigorificosAsync();
+    }
+
+    private void EditarOp(Operario o) =>
+        opEdit = new Operario { Id = o.Id, Apellido = o.Apellido, Nombre = o.Nombre, Dni = o.Dni, Tipo = o.Tipo, Activo = o.Activo };
+
+    private async Task GuardarOp()
+    {
+        errorOp = null;
+        if (string.IsNullOrWhiteSpace(opEdit.Apellido) || string.IsNullOrWhiteSpace(opEdit.Nombre))
+        {
+            errorOp = "Completá apellido y nombre.";
+            return;
+        }
+        await Cat.GuardarOperarioAsync(opEdit);
+        opEdit = new();
+        await Cargar();
+    }
+
+    private async Task ToggleOp(int id) { await Cat.ToggleOperarioAsync(id); await Cargar(); }
+
+    private async Task GuardarPat()
+    {
+        errorPat = null;
+        if (string.IsNullOrWhiteSpace(patEdit.Codigo)) { errorPat = "Ingresá un código."; return; }
+        patEdit.Codigo = patEdit.Codigo.Trim().ToUpperInvariant();
+        await Cat.GuardarPatenteAsync(patEdit);
+        patEdit = new();
+        await Cargar();
+    }
+
+    private async Task TogglePat(int id) { await Cat.TogglePatenteAsync(id); await Cargar(); }
+
+    private async Task GuardarFrig()
+    {
+        errorFrig = null;
+        if (string.IsNullOrWhiteSpace(frigEdit.Nombre)) { errorFrig = "Ingresá un nombre."; return; }
+        await Cat.GuardarFrigorificoAsync(frigEdit);
+        frigEdit = new();
+        await Cargar();
+    }
+
+    private async Task ToggleFrig(int id) { await Cat.ToggleFrigorificoAsync(id); await Cargar(); }
+}
