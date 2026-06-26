@@ -177,7 +177,8 @@
     {
         resultadoOk = res.Ok;
         resultadoImport = res.Ok
-            ? $"Listo: {res.Importados} lavados importados, {res.Omitidos} omitidos por duplicado (de {res.FilasLeidas} filas válidas)."
+            ? $"Listo: {res.Importados} lavados importados, {res.Omitidos} omitidos por duplicado (de {res.FilasLeidas} filas). " +
+              $"Catálogo: +{res.OperariosNuevos} operarios, +{res.PatentesNuevas} patentes."
             : "Error: " + res.Error;
     }
 

@@ -8,7 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ControlLavados.Services;
 
-public record ImportacionResultado(bool Ok, int Importados, int Omitidos, int FilasLeidas, string? Error);
+public record ImportacionResultado(bool Ok, int Importados, int Omitidos, int FilasLeidas,
+    int OperariosNuevos, int PatentesNuevas, string? Error);
 
 /// <summary>
 /// Importa las respuestas del Forms ("Respuestas de formulario 1") como lavados
@@ -24,7 +25,7 @@ public class ImportacionService
     public async Task<ImportacionResultado> ImportarDesdeArchivoAsync(string ruta)
     {
         if (!File.Exists(ruta))
-            return new(false, 0, 0, 0, $"No se encontró el archivo: {ruta}");
+            return new(false, 0, 0, 0, 0, 0, $"No se encontró el archivo: {ruta}");
         try
         {
             using var fs = new FileStream(ruta, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -32,7 +33,7 @@ public class ImportacionService
         }
         catch (Exception ex)
         {
-            return new(false, 0, 0, 0, ex.Message);
+            return new(false, 0, 0, 0, 0, 0, ex.Message);
         }
     }
 
@@ -43,7 +44,7 @@ public class ImportacionService
         using var limpio = LimpiarPaquete(xlsx);
         using var wb = new XLWorkbook(limpio);
         if (!wb.TryGetWorksheet(Hoja, out var ws))
-            return new(false, 0, 0, 0, $"El archivo no tiene la hoja «{Hoja}».");
+            return new(false, 0, 0, 0, 0, 0, $"El archivo no tiene la hoja «{Hoja}».");
 
         // Mapa de columnas por encabezado (fila 1).
         var col = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -59,16 +60,73 @@ public class ImportacionService
             cOffal = C("N° Operario Offal"), cAgencia = C("N° Operario Agencia");
 
         if (cFecha < 0 || cPat < 0 || cAtr < 0)
-            return new(false, 0, 0, 0, "No se encontraron las columnas esperadas (Fecha / Patente / Hora inicio Atraco).");
+            return new(false, 0, 0, 0, 0, 0, "No se encontraron las columnas esperadas (Fecha / Patente / Hora inicio Atraco).");
 
         await using var db = await _factory.CreateDbContextAsync();
+        var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
-        // Tipos de operario conocidos del catálogo.
+        // ---- Pasada 1: deducir el tipo de cada operario y juntar patentes/operarios distintos ----
+        var votos = new Dictionary<string, (int Offal, int Contrato)>(StringComparer.OrdinalIgnoreCase);
+        var patentesArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var nombresArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (int r = 2; r <= lastRow; r++)
+        {
+            var row = ws.Row(r);
+            var pat = row.Cell(cPat).GetString().Trim();
+            if (!string.IsNullOrWhiteSpace(pat)) patentesArchivo.Add(pat);
+
+            var nombres = SepararNombres(cOps > 0 ? row.Cell(cOps).GetString() : "");
+            foreach (var n in nombres) nombresArchivo.Add(n);
+
+            int nOffal = (int)(LeerNumero(row.Cell(cOffal)) ?? 0);
+            int nAgencia = (int)(LeerNumero(row.Cell(cAgencia)) ?? 0);
+            // Solo cuentan las filas de un único tipo.
+            int idxTipo = (nombres.Count > 0 && nOffal == nombres.Count && nAgencia == 0) ? 0
+                        : (nombres.Count > 0 && nAgencia == nombres.Count && nOffal == 0) ? 1 : -1;
+            if (idxTipo < 0) continue;
+            foreach (var n in nombres)
+            {
+                votos.TryGetValue(n, out var v);
+                votos[n] = idxTipo == 0 ? (v.Offal + 1, v.Contrato) : (v.Offal, v.Contrato + 1);
+            }
+        }
+
+        // Catálogo actual (por nombre completo y por patente).
+        var opsCat = await db.Operarios.ToListAsync();
         var tipoCat = new Dictionary<string, TipoOperario>(StringComparer.OrdinalIgnoreCase);
-        foreach (var o in await db.Operarios.ToListAsync())
-            tipoCat[o.NombreCompleto] = o.Tipo;
+        var nombresCat = new HashSet<string>(opsCat.Select(o => o.NombreCompleto), StringComparer.OrdinalIgnoreCase);
+        foreach (var o in opsCat) tipoCat[o.NombreCompleto] = o.Tipo;
+        var patentesCat = new HashSet<string>(
+            (await db.Patentes.ToListAsync()).Select(p => p.Codigo), StringComparer.OrdinalIgnoreCase);
 
-        // Claves ya existentes para no duplicar.
+        // Tipo final por operario: mayoría de votos; si no hay, lo que diga el catálogo; default Contrato.
+        TipoOperario TipoFinal(string nombre)
+        {
+            if (votos.TryGetValue(nombre, out var v) && (v.Offal > 0 || v.Contrato > 0))
+                return v.Offal > v.Contrato ? TipoOperario.Offal : TipoOperario.Contrato;
+            return tipoCat.TryGetValue(nombre, out var t) ? t : TipoOperario.Contrato;
+        }
+
+        // ---- Completar catálogos (sin tocar los existentes) ----
+        int opsNuevos = 0, patsNuevas = 0;
+        foreach (var n in nombresArchivo.Where(n => !nombresCat.Contains(n)))
+        {
+            var idx = n.IndexOf(' ');
+            var apellido = idx < 0 ? n : n[..idx];
+            var nombre = idx < 0 ? "" : n[(idx + 1)..].Trim();
+            db.Operarios.Add(new Operario { Apellido = apellido, Nombre = nombre, Tipo = TipoFinal(n) });
+            nombresCat.Add(n);
+            opsNuevos++;
+        }
+        foreach (var p in patentesArchivo.Where(p => !patentesCat.Contains(p)))
+        {
+            db.Patentes.Add(new Patente { Codigo = p });
+            patentesCat.Add(p);
+            patsNuevas++;
+        }
+
+        // Claves ya existentes para no duplicar lavados.
         var existentes = (await db.Lavados
                 .Where(l => l.Tipo == TipoLavado.Camion && l.InicioAtraco != null)
                 .Select(l => new { l.Patente, l.InicioAtraco })
@@ -77,8 +135,8 @@ public class ImportacionService
             .ToHashSet();
 
         int leidas = 0, importados = 0, omitidos = 0;
-        var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
+        // ---- Pasada 2: crear los lavados ----
         for (int r = 2; r <= lastRow; r++)
         {
             var row = ws.Row(r);
@@ -97,20 +155,7 @@ public class ImportacionService
             var clave = $"{patente}|{inicioAtraco:yyyyMMddHHmm}";
             if (!existentes.Add(clave)) { omitidos++; continue; }
 
-            var nombres = (cOps > 0 ? row.Cell(cOps).GetString() : "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToList();
-
-            int nOffal = (int)(LeerNumero(row.Cell(cOffal)) ?? 0);
-            int nAgencia = (int)(LeerNumero(row.Cell(cAgencia)) ?? 0);
-
-            TipoOperario TipoDe(string nombre)
-            {
-                // Si la fila es de un solo tipo, lo aplico a todos.
-                if (nombres.Count > 0 && nOffal == nombres.Count && nAgencia == 0) return TipoOperario.Offal;
-                if (nombres.Count > 0 && nAgencia == nombres.Count && nOffal == 0) return TipoOperario.Contrato;
-                return tipoCat.TryGetValue(nombre, out var t) ? t : TipoOperario.Contrato;
-            }
+            var nombres = SepararNombres(cOps > 0 ? row.Cell(cOps).GetString() : "");
 
             var inicioLav = LeerHora(cIniLav > 0 ? row.Cell(cIniLav) : null);
             var finLav = LeerHora(cFinLav > 0 ? row.Cell(cFinLav) : null);
@@ -131,7 +176,7 @@ public class ImportacionService
                 CreadoEn = marca ?? inicioAtraco,
                 Finalizado = desatraco.HasValue ? Comb(desatraco) : (marca ?? inicioAtraco),
                 OperariosPorSemana = nombres.Count,
-                Operarios = nombres.Select(n => new LavadoOperario { Nombre = n, Tipo = TipoDe(n) }).ToList(),
+                Operarios = nombres.Select(n => new LavadoOperario { Nombre = n, Tipo = TipoFinal(n) }).ToList(),
             };
 
             db.Lavados.Add(lavado);
@@ -139,8 +184,11 @@ public class ImportacionService
         }
 
         await db.SaveChangesAsync();
-        return new(true, importados, omitidos, leidas, null);
+        return new(true, importados, omitidos, leidas, opsNuevos, patsNuevas, null);
     }
+
+    private static List<string> SepararNombres(string celda) =>
+        celda.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
     // ---------- Limpieza del paquete xlsx ----------
 
