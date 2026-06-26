@@ -137,6 +137,24 @@
     <section class="card">
         <h2>Frigoríficos (@frigs.Count)</h2>
         <div class="form-grid">
+            <label style="grid-column:1/-1"><span>Importar listado (.xlsx) — ruta en el servidor</span>
+                <input @bind="rutaFrig" placeholder="C:\...\frigorificos.xlsx" />
+            </label>
+        </div>
+        <div class="curso-actions">
+            <button class="btn btn-ghost" @onclick="ImportarFrigRuta" disabled="@importandoFrig">
+                @(importandoFrig ? "Importando…" : "Importar listado desde ruta")
+            </button>
+            <label class="btn btn-ghost" style="cursor:pointer">
+                Subir archivo…
+                <InputFile OnChange="ImportarFrigArchivo" accept=".xlsx" style="display:none" />
+            </label>
+        </div>
+        @if (resultadoFrig is not null)
+        {
+            <p class="@(resultadoFrigOk ? "muted" : "error")" style="margin:8px 0">@resultadoFrig</p>
+        }
+        <div class="form-grid">
             <label><span>Nombre</span><input @bind="frigEdit.Nombre" /></label>
         </div>
         @if (errorFrig is not null) { <p class="error">@errorFrig</p> }
@@ -244,6 +262,43 @@
         resultadoPatOk = res.Ok;
         resultadoPat = res.Ok
             ? $"Listo: {res.Nuevas} patentes nuevas, {res.Actualizadas} actualizadas (de {res.FilasLeidas} filas)."
+            : "Error: " + res.Error;
+    }
+
+    // Importación de frigoríficos
+    private string rutaFrig = @"C:\Users\roberto.sanabria\Downloads\Libro1 (1).xlsx";
+    private bool importandoFrig;
+    private bool resultadoFrigOk;
+    private string? resultadoFrig;
+
+    private async Task ImportarFrigRuta()
+    {
+        importandoFrig = true; resultadoFrig = null;
+        MostrarFrig(await Imp.ImportarFrigorificosDesdeArchivoAsync(rutaFrig));
+        await Cargar();
+        importandoFrig = false;
+    }
+
+    private async Task ImportarFrigArchivo(InputFileChangeEventArgs e)
+    {
+        importandoFrig = true; resultadoFrig = null;
+        try
+        {
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024).CopyToAsync(ms);
+            ms.Position = 0;
+            MostrarFrig(await Imp.ImportarFrigorificosAsync(ms));
+            await Cargar();
+        }
+        catch (Exception ex) { resultadoFrigOk = false; resultadoFrig = "Error: " + ex.Message; }
+        importandoFrig = false;
+    }
+
+    private void MostrarFrig(ImportSimpleResultado res)
+    {
+        resultadoFrigOk = res.Ok;
+        resultadoFrig = res.Ok
+            ? $"Listo: {res.Nuevos} frigoríficos nuevos (de {res.FilasLeidas} filas)."
             : "Error: " + res.Error;
     }
 

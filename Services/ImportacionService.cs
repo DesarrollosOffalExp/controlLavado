@@ -13,6 +13,8 @@ public record ImportacionResultado(bool Ok, int Importados, int Omitidos, int Fi
 
 public record ImportPatentesResultado(bool Ok, int Nuevas, int Actualizadas, int FilasLeidas, string? Error);
 
+public record ImportSimpleResultado(bool Ok, int Nuevos, int FilasLeidas, string? Error);
+
 /// <summary>
 /// Importa las respuestas del Forms ("Respuestas de formulario 1") como lavados
 /// de camión finalizados, para que aparezcan en la reportería.
@@ -115,6 +117,59 @@ public class ImportacionService
     }
 
     private static string? Vacio(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    // ---------- Importación de frigoríficos ----------
+
+    public async Task<ImportSimpleResultado> ImportarFrigorificosDesdeArchivoAsync(string ruta)
+    {
+        if (!File.Exists(ruta))
+            return new(false, 0, 0, $"No se encontró el archivo: {ruta}");
+        try
+        {
+            using var fs = new FileStream(ruta, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return await ImportarFrigorificosAsync(fs);
+        }
+        catch (Exception ex)
+        {
+            return new(false, 0, 0, ex.Message);
+        }
+    }
+
+    /// <summary>Importa una columna con nombres de frigoríficos (Proveedor / Nombre / Frigorífico).</summary>
+    public async Task<ImportSimpleResultado> ImportarFrigorificosAsync(Stream xlsx)
+    {
+        using var limpio = LimpiarPaquete(xlsx);
+        using var wb = new XLWorkbook(limpio);
+        var ws = wb.Worksheets.FirstOrDefault();
+        if (ws is null) return new(false, 0, 0, "El archivo no tiene hojas.");
+
+        var col = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var cell in ws.Row(1).CellsUsed())
+            col[Norm(cell.GetString())] = cell.Address.ColumnNumber;
+        int cNom = new[] { "Proveedor", "Nombre", "Frigorífico", "Frigorifico" }
+            .Select(k => col.TryGetValue(Norm(k), out var n) ? n : -1).FirstOrDefault(n => n > 0, -1);
+        if (cNom < 0) cNom = 1; // si no hay encabezado reconocido, uso la primera columna
+
+        await using var db = await _factory.CreateDbContextAsync();
+        var existentes = new HashSet<string>(
+            (await db.Frigorificos.ToListAsync()).Select(f => f.Nombre), StringComparer.OrdinalIgnoreCase);
+
+        int nuevos = 0, leidas = 0;
+        var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+        for (int r = 2; r <= lastRow; r++)
+        {
+            var nombre = ws.Cell(r, cNom).GetString().Trim();
+            if (string.IsNullOrWhiteSpace(nombre)) continue;
+            leidas++;
+            if (existentes.Add(nombre))
+            {
+                db.Frigorificos.Add(new Frigorifico { Nombre = nombre });
+                nuevos++;
+            }
+        }
+        await db.SaveChangesAsync();
+        return new(true, nuevos, leidas, null);
+    }
 
     public async Task<ImportacionResultado> ImportarAsync(Stream xlsx)
     {
@@ -231,6 +286,15 @@ public class ImportacionService
             DateTime Comb(TimeSpan? h) => h.HasValue ? f.ToDateTime(TimeOnly.FromTimeSpan(h.Value)) : default;
 
             var inicioAtraco = Comb(atraco);
+            // Si una etapa posterior tiene hora menor al atraco, el lavado cruzó la
+            // medianoche: la pasamos al día siguiente para que las duraciones no den negativas.
+            DateTime? CombRoll(TimeSpan? h)
+            {
+                if (!h.HasValue) return null;
+                var dt = Comb(h);
+                return dt < inicioAtraco ? dt.AddDays(1) : dt;
+            }
+
             var clave = $"{patente}|{inicioAtraco:yyyyMMddHHmm}";
             if (!existentes.Add(clave)) { omitidos++; continue; }
 
@@ -241,19 +305,20 @@ public class ImportacionService
             var desatraco = LeerHora(cDes > 0 ? row.Cell(cDes) : null);
             var marca = cMarca > 0 ? LeerFechaHora(row.Cell(cMarca)) : null;
 
+            var desatracoDt = CombRoll(desatraco);
             var lavado = new Lavado
             {
                 Tipo = TipoLavado.Camion,
                 Patente = patente,
                 Fecha = f,
                 InicioAtraco = inicioAtraco,
-                InicioLavado = inicioLav.HasValue ? Comb(inicioLav) : null,
-                FinLavado = finLav.HasValue ? Comb(finLav) : null,
-                Desatraco = desatraco.HasValue ? Comb(desatraco) : null,
+                InicioLavado = CombRoll(inicioLav),
+                FinLavado = CombRoll(finLav),
+                Desatraco = desatracoDt,
                 Incidencias = cInc > 0 ? row.Cell(cInc).GetString().Trim() : null,
                 Estado = EstadoLavado.Finalizado,
                 CreadoEn = marca ?? inicioAtraco,
-                Finalizado = desatraco.HasValue ? Comb(desatraco) : (marca ?? inicioAtraco),
+                Finalizado = desatracoDt ?? (marca ?? inicioAtraco),
                 OperariosPorSemana = nombres.Count,
                 Operarios = nombres.Select(n => new LavadoOperario { Nombre = n, Tipo = TipoFinal(n) }).ToList(),
             };
