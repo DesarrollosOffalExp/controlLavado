@@ -286,6 +286,11 @@ textarea { resize: vertical; width: 100%; }
 .grilla th { background: var(--panel-2); color: var(--muted); position: sticky; top: 0; font-weight: 600; }
 .grilla tr:hover td { background: rgba(255,255,255,.02); }
 .grilla .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Reportería: todo centrado (encabezados y valores, incluidos los numéricos). */
+.grilla-center th,
+.grilla-center td,
+.grilla-center .num { text-align: center; }
 .grilla .ops { white-space: normal; min-width: 160px; max-width: 240px; }
 .grilla .acciones { display: flex; gap: 6px; }
 .grilla .btn { min-height: 32px; padding: 5px 10px; font-size: 13px; }
