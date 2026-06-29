@@ -75,7 +75,13 @@ public class ReporteService
                 g => (
                     Cant: g.Count(),
                     Total: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.TiempoTotal ?? TimeSpan.Zero)),
-                    TotalOp: g.Sum(l => l.OperariosUsados)));
+                    // Operarios DISTINTOS de la semana: una persona cuenta 1 aunque haga varios lavados.
+                    Operarios: g.SelectMany(l => l.Operarios)
+                                .Select(o => o.Nombre)
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .Count(),
+                    // Total de asignaciones (para el promedio de operarios por lavado).
+                    Asignaciones: g.Sum(l => l.OperariosUsados)));
 
         var semanas = new List<MetricaSemana>();
         foreach (var semana in baseSemana.Keys.OrderBy(k => k))
@@ -92,7 +98,7 @@ public class ReporteService
             semanas.Add(new MetricaSemana(
                 semana, cur.Cant, cur.Total,
                 TimeSpan.FromSeconds(cur.Total.TotalSeconds / cur.Cant),
-                cur.TotalOp, (double)cur.TotalOp / cur.Cant, varHoras, varLav));
+                cur.Operarios, (double)cur.Asignaciones / cur.Cant, varHoras, varLav));
         }
         return new MetricasTurno(etiqueta, semanas);
     }
