@@ -50,7 +50,7 @@
         @foreach (var t in metricas)
         {
             <section class="card">
-                <h2>Turno @t.Turno <span class="info" tabindex="0" data-tip="@TipMetricas">i</span></h2>
+                <h2>@(t.Turno == "Resumen" ? "Resumen (total)" : "Turno " + t.Turno) <span class="info" tabindex="0" data-tip="@TipMetricas">i</span></h2>
                 <div class="tabla-scroll">
                     <table class="grilla">
                         <thead>
@@ -102,7 +102,8 @@
                                 <th>Tipo</th>
                                 @foreach (var sem in horas.Semanas)
                                 {
-                                    <th>Sem @sem</th>
+                                    <th>Sem @sem hs</th>
+                                    <th>Sem @sem d</th>
                                 }
                                 <th>Días trab.</th>
                                 <th>Total hs</th>
@@ -117,44 +118,13 @@
                                     <td>@f.Tipo</td>
                                     @foreach (var sem in horas.Semanas)
                                     {
-                                        <td class="num">@FmtDur(f.PorSemana.TryGetValue(sem, out var hs) ? hs : TimeSpan.Zero)</td>
+                                        var hs = f.PorSemana.TryGetValue(sem, out var h) ? h : TimeSpan.Zero;
+                                        var d = f.DiasPorSemana.TryGetValue(sem, out var dd) ? dd : 0;
+                                        <td class="num">@FmtDur(hs)</td>
+                                        <td class="num">@d</td>
                                     }
                                     <td class="num">@f.DiasTrabajados</td>
                                     <td class="num"><b>@FmtDur(f.Total)</b></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </section>
-
-        <section class="card">
-            <h2>Resumen por operario <span class="info" tabindex="0" data-tip="@TipResumen">i</span></h2>
-            @if (resumen.Count == 0)
-            {
-                <p class="muted">Sin datos.</p>
-            }
-            else
-            {
-                <div class="tabla-scroll">
-                    <table class="grilla">
-                        <thead>
-                            <tr>
-                                <th>Operario</th><th>Tipo</th><th>Lavados</th>
-                                <th>Días trab.</th><th>Hs trabajadas</th><th>Prom. lavado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var r in resumen)
-                            {
-                                <tr>
-                                    <td>@r.Operario</td>
-                                    <td>@r.Tipo</td>
-                                    <td class="num">@r.Lavados</td>
-                                    <td class="num">@r.DiasTrabajados</td>
-                                    <td class="num">@FmtDur(r.Horas)</td>
-                                    <td class="num">@FmtDur(r.Promedio)</td>
                                 </tr>
                             }
                         </tbody>
@@ -211,30 +181,24 @@
         "(si 2 personas lavan un camión de 40 min, cada una suma 40).";
 
     private const string TipMetricas =
-        "Agrupa los lavados por turno y semana (ISO).\n\n" +
+        "Métricas por semana (ISO). Hay un bloque por turno (Mañana / Tarde, según la hora del lavado: Mañana 06–18, Tarde 18–06) y un bloque «Resumen» que totaliza ambos.\n\n" +
         "• Lavados: cantidad de la semana.\n" +
-        "• Total hs: suma de los tiempos totales.\n" +
-        "• Prom. hs: Total hs ÷ Lavados.\n" +
+        "• Total hs: suma de los tiempos; Prom. hs: ÷ Lavados.\n" +
         "• Operarios: suma de operarios usados; Prom. op.: ÷ Lavados.\n" +
-        "• % Var.: variación contra la semana ANTERIOR (N−1) si tiene datos: (N − N−1) ÷ N−1. Si no hay semana previa, muestra “—”.";
+        "• % Var.: variación vs la semana anterior (N−1): (N − N−1) ÷ N−1. Si no hay semana previa, «—».";
 
     private const string TipHoras =
         "Horas trabajadas por cada operario, por semana.\n\n" +
-        "• Cada celda de semana = suma de los tiempos totales de los lavados en que participó esa semana.\n" +
-        "• Días trab.: días distintos en que participó.\n" +
-        "• Total hs: suma de todas las semanas del rango.";
+        "• Por cada semana hay dos columnas: «hs» (horas trabajadas) y «d» (días trabajados esa semana).\n" +
+        "• Días trab.: total de días distintos en todo el rango.\n" +
+        "• Total hs: suma de todas las semanas.";
 
-    private const string TipResumen =
-        "Una fila por operario, sobre todo el rango filtrado.\n\n" +
-        "• Camiones: lavados de tipo Camión en que participó.\n" +
-        "• Lavados: total de lavados (todos los circuitos).\n" +
+    private const string TipResumenMes =
+        "Una fila por operario y por mes (AAAA-MM).\n\n" +
+        "• Lavados: total de lavados del operario en el mes.\n" +
         "• Días trab.: días distintos.\n" +
         "• Hs trabajadas: suma de los tiempos totales.\n" +
         "• Prom. lavado: Hs trabajadas ÷ Lavados.";
-
-    private const string TipResumenMes =
-        "Igual que “Resumen por operario”, pero agrupado por mes (AAAA-MM).\n\n" +
-        "Una fila por operario y por mes, con sus camiones, lavados, días, horas y promedio de lavado.";
 
     private string tipoSel = "Camion";
     private DateOnly? desde;
@@ -243,7 +207,6 @@
     private List<Lavado> lavados = new();
     private List<MetricasTurno> metricas = new();
     private HorasReporte horas = new(new(), new());
-    private List<OperarioResumen> resumen = new();
     private List<OperarioMesResumen> resumenMes = new();
     private Dictionary<string, string?> turnoOperarios = new();
 
@@ -268,7 +231,6 @@
         lavados = await Rep.ObtenerAsync(TipoSeleccion(), desde, hasta);
         metricas = Rep.CalcularMetricas(lavados);
         horas = Rep.CalcularHorasPorOperario(lavados, turnoOperarios);
-        resumen = Rep.ResumenPorOperario(lavados);
         resumenMes = Rep.ResumenPorMes(lavados);
     }
 
