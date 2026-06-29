@@ -21,6 +21,11 @@ public class RolClaimsTransformation : IClaimsTransformation
         if (identity is null || !identity.IsAuthenticated)
             return principal;
 
+        // Modo demo / local (login apagado): el rol ya viene del DevAuthHandler.
+        // No consultamos la base (evita depender de la tabla de usuarios).
+        if (identity.AuthenticationType == DevAuthHandler.SchemeName)
+            return principal;
+
         // Evita reprocesar si ya se transformó en este request.
         if (principal.HasClaim(c => c.Type == "rol_resuelto"))
             return principal;

@@ -24,6 +24,7 @@ public class DevAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
         {
             new Claim("preferred_username", email),
             new Claim("name", "Roberto Sanabria"),
+            new Claim(ClaimTypes.Role, "Admin"),  // sin login => admin, sin consultar la base
         };
         var identity = new ClaimsIdentity(claims, SchemeName, "name", ClaimTypes.Role);
         var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName);

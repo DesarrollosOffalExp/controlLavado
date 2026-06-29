@@ -32,5 +32,9 @@ public class AppDbContext : DbContext
         });
 
         modelBuilder.Entity<Operario>(e => e.Property(o => o.Tipo).HasConversion<int>());
+
+        // La base se comparte con el proyecto de etiquetas, que ya tiene una tabla
+        // "Usuarios" con otro esquema. Usamos un nombre propio para no chocar.
+        modelBuilder.Entity<Usuario>().ToTable("LavadosUsuarios");
     }
 }

@@ -62,8 +62,8 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
     using var db = factory.CreateDbContext();
     db.Database.EnsureCreated();
-    db.Database.ExecuteSqlRaw(@"IF OBJECT_ID('dbo.Usuarios') IS NULL
-CREATE TABLE dbo.Usuarios (
+    db.Database.ExecuteSqlRaw(@"IF OBJECT_ID('dbo.LavadosUsuarios') IS NULL
+CREATE TABLE dbo.LavadosUsuarios (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
     Email nvarchar(120) NOT NULL,
     Nombre nvarchar(120) NULL,
