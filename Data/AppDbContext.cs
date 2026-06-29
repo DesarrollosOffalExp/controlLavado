@@ -16,6 +16,10 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Esquema propio: todas nuestras tablas viven en 'lavados.*', separadas de
+        // las del sistema de etiquetas ('dbo.*'). Evita choques de nombres a futuro.
+        modelBuilder.HasDefaultSchema("lavados");
+
         modelBuilder.Entity<Lavado>(e =>
         {
             e.Property(l => l.Tipo).HasConversion<int>();

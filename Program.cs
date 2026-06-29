@@ -62,8 +62,21 @@ using (var scope = app.Services.CreateScope())
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
     using var db = factory.CreateDbContext();
     db.Database.EnsureCreated();
-    db.Database.ExecuteSqlRaw(@"IF OBJECT_ID('dbo.LavadosUsuarios') IS NULL
-CREATE TABLE dbo.LavadosUsuarios (
+
+    // Esquema propio 'lavados': mueve nuestras tablas de 'dbo' a 'lavados' una sola
+    // vez (idempotente). No toca las tablas del sistema de etiquetas.
+    db.Database.ExecuteSqlRaw(@"
+IF SCHEMA_ID('lavados') IS NULL EXEC('CREATE SCHEMA lavados');
+IF OBJECT_ID('dbo.Lavados','U') IS NOT NULL AND OBJECT_ID('lavados.Lavados','U') IS NULL EXEC('ALTER SCHEMA lavados TRANSFER dbo.Lavados');
+IF OBJECT_ID('dbo.LavadoOperarios','U') IS NOT NULL AND OBJECT_ID('lavados.LavadoOperarios','U') IS NULL EXEC('ALTER SCHEMA lavados TRANSFER dbo.LavadoOperarios');
+IF OBJECT_ID('dbo.Operarios','U') IS NOT NULL AND OBJECT_ID('lavados.Operarios','U') IS NULL EXEC('ALTER SCHEMA lavados TRANSFER dbo.Operarios');
+IF OBJECT_ID('dbo.Patentes','U') IS NOT NULL AND OBJECT_ID('lavados.Patentes','U') IS NULL EXEC('ALTER SCHEMA lavados TRANSFER dbo.Patentes');
+IF OBJECT_ID('dbo.Frigorificos','U') IS NOT NULL AND OBJECT_ID('lavados.Frigorificos','U') IS NULL EXEC('ALTER SCHEMA lavados TRANSFER dbo.Frigorificos');
+IF OBJECT_ID('dbo.LavadosUsuarios','U') IS NOT NULL AND OBJECT_ID('lavados.LavadosUsuarios','U') IS NULL EXEC('ALTER SCHEMA lavados TRANSFER dbo.LavadosUsuarios');");
+
+    // Crea la tabla de usuarios en el esquema lavados si aún no existe (DB nueva/local).
+    db.Database.ExecuteSqlRaw(@"IF OBJECT_ID('lavados.LavadosUsuarios') IS NULL
+CREATE TABLE lavados.LavadosUsuarios (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
     Email nvarchar(120) NOT NULL,
     Nombre nvarchar(120) NULL,
