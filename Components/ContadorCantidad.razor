@@ -1,0 +1,39 @@
+@* Stepper de cantidad: botones − / + y número editable en el medio.
+   Reemplaza al <input type="number"> nativo (sin las flechitas feas del navegador). *@
+
+<div class="stepper">
+    <button type="button" class="stepper-btn" @onclick="Restar" disabled="@(Value <= Min)" aria-label="Restar">−</button>
+    <input class="stepper-val" type="text" inputmode="numeric" value="@Value" @onchange="OnInput" />
+    <button type="button" class="stepper-btn" @onclick="Sumar"
+            disabled="@(Max.HasValue && Value >= Max.Value)" aria-label="Sumar">+</button>
+</div>
+
+@code {
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    [Parameter] public int Min { get; set; } = 0;
+    [Parameter] public int? Max { get; set; }
+    [Parameter] public int Step { get; set; } = 1;
+
+    private async Task Asignar(int v)
+    {
+        if (v < Min) v = Min;
+        if (Max.HasValue && v > Max.Value) v = Max.Value;
+        if (v != Value)
+        {
+            Value = v;
+            await ValueChanged.InvokeAsync(v);
+        }
+        else
+        {
+            // Forzar re-render para revertir un texto inválido al valor actual.
+            StateHasChanged();
+        }
+    }
+
+    private Task Sumar() => Asignar(Value + Step);
+    private Task Restar() => Asignar(Value - Step);
+
+    private Task OnInput(ChangeEventArgs e) =>
+        Asignar(int.TryParse(e.Value?.ToString(), out var v) ? v : Value);
+}

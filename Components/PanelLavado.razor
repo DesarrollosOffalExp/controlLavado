@@ -40,12 +40,12 @@
 
                 <label>
                     <span>Tambores</span>
-                    <input type="number" min="0" @bind="form.Tambores" />
+                    <ContadorCantidad @bind-Value="form.Tambores" />
                 </label>
 
                 <label>
                     <span>Pallets</span>
-                    <input type="number" min="0" @bind="form.Pallets" />
+                    <ContadorCantidad @bind-Value="form.Pallets" />
                 </label>
             }
             else
@@ -159,8 +159,8 @@
                                     </select>
                                 </label>
                                 <div class="mini">
-                                    <label><span>Tambores</span><input type="number" min="0" @bind="edit.Tambores" /></label>
-                                    <label><span>Pallets</span><input type="number" min="0" @bind="edit.Pallets" /></label>
+                                    <label><span>Tambores</span><ContadorCantidad @bind-Value="edit.Tambores" /></label>
+                                    <label><span>Pallets</span><ContadorCantidad @bind-Value="edit.Pallets" /></label>
                                 </div>
                                 <label><span>Operarios</span>
                                     <ComboBuscador Items="OperariosOpciones(edit, dispEdit)" LimpiarAlElegir="true"
