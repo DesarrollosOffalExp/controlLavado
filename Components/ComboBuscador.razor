@@ -1,0 +1,96 @@
+@* Autocompletar con dropdown propio (renderizado en el DOM), consistente en
+   todos los navegadores y mobile. Reemplaza al <datalist> nativo, que en
+   Edge/Chrome no despliega de forma confiable. *@
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="combo">
+    <input type="text" value="@query" placeholder="@Placeholder" autocomplete="off"
+           @oninput="OnInput" @onclick="() => open = true" @onfocusout="OnBlur" @onkeydown="OnKey" />
+    @if (open && Filtradas.Count > 0)
+    {
+        <ul class="combo-list">
+            @foreach (var o in Filtradas)
+            {
+                <li @onmousedown="() => Elegir(o)">
+                    <span>@o.Valor</span>
+                    @if (!string.IsNullOrEmpty(o.Etiqueta))
+                    {
+                        <small>@o.Etiqueta</small>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    /// <summary>Una opción del listado: el valor y una etiqueta secundaria opcional (ej. tipo).</summary>
+    public record Opcion(string Valor, string? Etiqueta = null);
+
+    [Parameter] public IEnumerable<Opcion> Items { get; set; } = Enumerable.Empty<Opcion>();
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Si es true, el input se vacía tras elegir (modo "agregar", ej. operarios).</summary>
+    [Parameter] public bool LimpiarAlElegir { get; set; }
+
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>Se dispara cuando el usuario elige una opción (click o Enter).</summary>
+    [Parameter] public EventCallback<string> OnElegido { get; set; }
+
+    [Parameter] public int MaxItems { get; set; } = 50;
+
+    private string query = "";
+    private bool open;
+
+    protected override void OnParametersSet()
+    {
+        // Si el valor viene de afuera (ej. reset del formulario) y no estamos
+        // editando, sincronizamos el texto del input.
+        if (!LimpiarAlElegir && !open && (Value ?? "") != query)
+            query = Value ?? "";
+    }
+
+    private List<Opcion> Filtradas =>
+        (string.IsNullOrWhiteSpace(query)
+            ? Items
+            : Items.Where(o => o.Valor.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        .Take(MaxItems)
+        .ToList();
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        query = e.Value?.ToString() ?? "";
+        open = true;
+        if (!LimpiarAlElegir) await ValueChanged.InvokeAsync(query);
+    }
+
+    // El mousedown del item ya disparó la selección antes del blur.
+    private void OnBlur() => open = false;
+
+    private async Task OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") { open = false; return; }
+        if (e.Key == "Enter")
+        {
+            var primera = Filtradas.FirstOrDefault();
+            if (primera is not null) await Elegir(primera);
+        }
+    }
+
+    private async Task Elegir(Opcion o)
+    {
+        open = false;
+        if (LimpiarAlElegir)
+        {
+            query = "";
+        }
+        else
+        {
+            query = o.Valor;
+            await ValueChanged.InvokeAsync(o.Valor);
+        }
+        await OnElegido.InvokeAsync(o.Valor);
+    }
+}

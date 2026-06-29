@@ -12,13 +12,8 @@
             {
                 <label>
                     <span>Patente de unidad</span>
-                    <input list="patentes-list" @bind="form.Patente" placeholder="Escribí o elegí la patente…" autocomplete="off" />
-                    <datalist id="patentes-list">
-                        @foreach (var p in PatentesDisponibles)
-                        {
-                            <option value="@p" />
-                        }
-                    </datalist>
+                    <ComboBuscador Items="PatentesOpciones" @bind-Value="form.Patente"
+                                   Placeholder="Escribí o elegí la patente…" />
                 </label>
 
                 <label>
@@ -63,14 +58,9 @@
 
             <label>
                 <span>Operarios <small class="muted">(turno @TurnoActualNombre)</small></span>
-                <input list="ops-nuevo" @key="@($"opnew-{comboKey}")" @onchange="e => AgregarOperario(form, e.Value?.ToString())"
-                       placeholder="Escribí y elegí un operario…" autocomplete="off" />
-                <datalist id="ops-nuevo">
-                    @foreach (var op in OperariosDisponibles(form, disp))
-                    {
-                        <option value="@op.NombreCompleto">@op.Tipo</option>
-                    }
-                </datalist>
+                <ComboBuscador Items="OperariosOpciones(form, disp)" LimpiarAlElegir="true"
+                               OnElegido="n => AgregarOperario(form, n)"
+                               Placeholder="Escribí y elegí un operario…" />
             </label>
         </div>
 
@@ -173,14 +163,9 @@
                                     <label><span>Pallets</span><input type="number" min="0" @bind="edit.Pallets" /></label>
                                 </div>
                                 <label><span>Operarios</span>
-                                    <input list="ops-edit" @key="@($"opedit-{comboKey}")" @onchange="e => AgregarOperario(edit, e.Value?.ToString())"
-                                           placeholder="Escribí y elegí un operario…" autocomplete="off" />
-                                    <datalist id="ops-edit">
-                                        @foreach (var op in OperariosDisponibles(edit, dispEdit))
-                                        {
-                                            <option value="@op.NombreCompleto">@op.Tipo</option>
-                                        }
-                                    </datalist>
+                                    <ComboBuscador Items="OperariosOpciones(edit, dispEdit)" LimpiarAlElegir="true"
+                                                   OnElegido="n => AgregarOperario(edit, n)"
+                                                   Placeholder="Escribí y elegí un operario…" />
                                 </label>
                                 @if (edit.Operarios.Count > 0)
                                 {
@@ -370,6 +355,13 @@
     private IEnumerable<Operario> OperariosDisponibles(FormModel m, Disponibilidad d) =>
         operarios.Where(o => OperarioEnTurno(o)
             && !d.OperariosOcupados.Contains(o.NombreCompleto) && !m.Operarios.Contains(o.NombreCompleto));
+
+    // Opciones para el dropdown propio (ComboBuscador).
+    private IEnumerable<ComboBuscador.Opcion> PatentesOpciones =>
+        PatentesDisponibles.Select(p => new ComboBuscador.Opcion(p));
+
+    private IEnumerable<ComboBuscador.Opcion> OperariosOpciones(FormModel m, Disponibilidad d) =>
+        OperariosDisponibles(m, d).Select(o => new ComboBuscador.Opcion(o.NombreCompleto, o.Tipo.ToString()));
 
     private void AgregarOperario(FormModel m, string? nombre)
     {
