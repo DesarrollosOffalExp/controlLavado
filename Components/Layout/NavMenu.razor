@@ -1,0 +1,50 @@
+@* Barra de navegación. Es su propia isla interactiva (InteractiveServer) para que
+   el menú hamburguesa funcione: el MainLayout se renderiza estático (SSR). *@
+@rendermode InteractiveServer
+@inject IHostEnvironment Env
+@inject IConfiguration Config
+
+<nav class="topbar">
+    <div class="topbar-row">
+        <div class="brand"><img src="favicon.png" alt="Offal" class="brand-logo" />Control de Lavados</div>
+        <button class="hamburger @(menuOpen ? "abierto" : "")" @onclick="ToggleMenu"
+                aria-label="Menú" aria-expanded="@menuOpen">
+            <span></span><span></span><span></span>
+        </button>
+    </div>
+    <div class="nav-collapse @(menuOpen ? "abierto" : "")">
+        <div class="links" @onclick="CerrarMenu">
+            <NavLink class="navlink" href="/camiones" Match="NavLinkMatch.All">Camiones</NavLink>
+            <NavLink class="navlink" href="/hielo">Fábrica de Hielo</NavLink>
+            <NavLink class="navlink" href="/hiel">Hiel</NavLink>
+            <NavLink class="navlink" href="/varias">Varias</NavLink>
+            <AuthorizeView Roles="Admin,Administrativo">
+                <NavLink class="navlink" href="/reportes">Reportes</NavLink>
+                <NavLink class="navlink" href="/catalogos">Configuración</NavLink>
+            </AuthorizeView>
+            <AuthorizeView Roles="Admin">
+                <NavLink class="navlink" href="/usuarios">Usuarios</NavLink>
+            </AuthorizeView>
+        </div>
+        <AuthorizeView>
+            <Authorized>
+                <div class="userbox">
+                    <span class="user">@context.User.Identity?.Name</span>
+                    @if (EntraHabilitado)
+                    {
+                        <a class="navlink salir" href="/MicrosoftIdentity/Account/SignOut">Salir</a>
+                    }
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</nav>
+
+@code {
+    // El login de Microsoft (y el botón Salir) solo aplican si Entra está prendido.
+    private bool EntraHabilitado => Config.GetValue<bool>("AzureAd:Enabled") && !Env.IsDevelopment();
+
+    private bool menuOpen;
+    private void ToggleMenu() => menuOpen = !menuOpen;
+    private void CerrarMenu() => menuOpen = false;
+}

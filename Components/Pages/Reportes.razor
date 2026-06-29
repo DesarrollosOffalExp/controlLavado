@@ -1,6 +1,6 @@
 @page "/reportes"
 @rendermode InteractiveServer
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Admin,Administrativo")]
 @using System.Globalization
 @inject ReporteService Rep
 @inject CatalogoService Cat

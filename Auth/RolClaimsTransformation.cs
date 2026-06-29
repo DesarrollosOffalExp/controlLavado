@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ControlLavados.Models;
 using ControlLavados.Services;
 using Microsoft.AspNetCore.Authentication;
 
@@ -11,6 +12,7 @@ namespace ControlLavados.Auth;
 public class RolClaimsTransformation : IClaimsTransformation
 {
     public const string RolAdmin = "Admin";
+    public const string RolAdministrativo = "Administrativo";
     private readonly UsuarioService _usuarios;
 
     public RolClaimsTransformation(UsuarioService usuarios) => _usuarios = usuarios;
@@ -41,8 +43,13 @@ public class RolClaimsTransformation : IClaimsTransformation
         var usuario = await _usuarios.ResolverEnLoginAsync(email, nombre);
 
         identity.AddClaim(new Claim("rol_resuelto", "1"));
-        if (usuario is { EsAdmin: true })
-            identity.AddClaim(new Claim(ClaimTypes.Role, RolAdmin));
+        if (usuario is not null)
+        {
+            if (usuario.Rol == RolUsuario.Admin)
+                identity.AddClaim(new Claim(ClaimTypes.Role, RolAdmin));
+            else if (usuario.Rol == RolUsuario.Administrativo)
+                identity.AddClaim(new Claim(ClaimTypes.Role, RolAdministrativo));
+        }
 
         return principal;
     }

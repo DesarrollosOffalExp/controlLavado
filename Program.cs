@@ -80,10 +80,20 @@ CREATE TABLE lavados.LavadosUsuarios (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
     Email nvarchar(120) NOT NULL,
     Nombre nvarchar(120) NULL,
-    EsAdmin bit NOT NULL DEFAULT 0,
+    Rol int NOT NULL DEFAULT 0,
     Activo bit NOT NULL DEFAULT 1,
     UltimoAcceso datetime2 NULL
 );");
+
+    // Perfiles (Operario/Administrativo/Admin): agrega la columna Rol si falta y la
+    // rellena desde EsAdmin para los usuarios que ya existían (1 => Admin = 2).
+    db.Database.ExecuteSqlRaw(@"
+IF OBJECT_ID('lavados.LavadosUsuarios') IS NOT NULL AND COL_LENGTH('lavados.LavadosUsuarios','Rol') IS NULL
+BEGIN
+    EXEC('ALTER TABLE lavados.LavadosUsuarios ADD Rol int NOT NULL CONSTRAINT DF_LavadosUsuarios_Rol DEFAULT 0');
+    IF COL_LENGTH('lavados.LavadosUsuarios','EsAdmin') IS NOT NULL
+        EXEC('UPDATE lavados.LavadosUsuarios SET Rol = 2 WHERE EsAdmin = 1');
+END");
     CatalogoService.Seed(db);
 }
 

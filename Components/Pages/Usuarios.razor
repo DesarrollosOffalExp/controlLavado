@@ -18,9 +18,10 @@
             <label><span>Email (Microsoft 365)</span><input @bind="nuevo.Email" placeholder="usuario@offal.com.ar" /></label>
             <label><span>Nombre (opcional)</span><input @bind="nuevo.Nombre" /></label>
             <label><span>Rol</span>
-                <select @bind="nuevo.EsAdmin">
-                    <option value="false">Operario</option>
-                    <option value="true">Administrador</option>
+                <select @bind="nuevo.Rol">
+                    <option value="Operario">Operario</option>
+                    <option value="Administrativo">Administrativo</option>
+                    <option value="Admin">Administrador</option>
                 </select>
             </label>
         </div>
@@ -41,11 +42,16 @@
                         <tr style="@(u.Activo ? "" : "opacity:.5")">
                             <td>@u.Email</td>
                             <td>@u.Nombre</td>
-                            <td>@(u.EsAdmin ? "Administrador" : "Operario")</td>
+                            <td>
+                                <select value="@u.Rol" @onchange="e => CambiarRol(u.Id, e.Value?.ToString())">
+                                    <option value="Operario">Operario</option>
+                                    <option value="Administrativo">Administrativo</option>
+                                    <option value="Admin">Administrador</option>
+                                </select>
+                            </td>
                             <td>@(u.Activo ? "Activo" : "Baja")</td>
                             <td>@(u.UltimoAcceso?.ToString("dd/MM/yyyy HH:mm", Es) ?? "—")</td>
                             <td class="acciones">
-                                <button class="btn btn-ghost" @onclick="() => ToggleAdmin(u.Id)">@(u.EsAdmin ? "Quitar admin" : "Hacer admin")</button>
                                 <button class="btn btn-ghost" @onclick="() => ToggleActivo(u.Id)">@(u.Activo ? "Dar de baja" : "Activar")</button>
                             </td>
                         </tr>
@@ -79,6 +85,9 @@
         await Cargar();
     }
 
-    private async Task ToggleAdmin(int id) { await Svc.ToggleAdminAsync(id); await Cargar(); }
+    private async Task CambiarRol(int id, string? rol)
+    {
+        if (Enum.TryParse<RolUsuario>(rol, out var r)) { await Svc.CambiarRolAsync(id, r); await Cargar(); }
+    }
     private async Task ToggleActivo(int id) { await Svc.ToggleActivoAsync(id); await Cargar(); }
 }

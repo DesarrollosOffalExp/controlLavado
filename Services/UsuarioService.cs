@@ -12,7 +12,7 @@ public class UsuarioService
     public async Task<List<Usuario>> ListarAsync()
     {
         await using var db = await _factory.CreateDbContextAsync();
-        return await db.Usuarios.OrderByDescending(u => u.EsAdmin).ThenBy(u => u.Email).ToListAsync();
+        return await db.Usuarios.OrderByDescending(u => u.Rol).ThenBy(u => u.Email).ToListAsync();
     }
 
     /// <summary>
@@ -26,7 +26,7 @@ public class UsuarioService
         var u = await db.Usuarios.FirstOrDefaultAsync(x => x.Email == email);
         if (u is null)
         {
-            u = new Usuario { Email = email, Nombre = nombre, EsAdmin = false, Activo = true };
+            u = new Usuario { Email = email, Nombre = nombre, Rol = RolUsuario.Operario, Activo = true };
             db.Usuarios.Add(u);
         }
         else if (!string.IsNullOrWhiteSpace(nombre))
@@ -47,12 +47,12 @@ public class UsuarioService
         await db.SaveChangesAsync();
     }
 
-    public async Task ToggleAdminAsync(int id)
+    public async Task CambiarRolAsync(int id, RolUsuario rol)
     {
         await using var db = await _factory.CreateDbContextAsync();
         var u = await db.Usuarios.FindAsync(id);
         if (u is null) return;
-        u.EsAdmin = !u.EsAdmin;
+        u.Rol = rol;
         await db.SaveChangesAsync();
     }
 

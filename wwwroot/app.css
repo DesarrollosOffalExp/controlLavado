@@ -32,16 +32,18 @@ h1, h2 { margin: 0; }
     align-items: center;
     gap: 24px;
     padding: 0 24px;
-    height: 56px;
+    min-height: 56px;
     background: var(--panel);
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 20;
 }
-.brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+.topbar-row { display: flex; align-items: center; flex: 0 0 auto; }
+.nav-collapse { display: flex; align-items: center; gap: 24px; flex: 1 1 auto; }
+.brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .brand-logo { height: 26px; width: 26px; object-fit: contain; }
-.links { display: flex; gap: 8px; }
+.links { display: flex; gap: 8px; flex-wrap: wrap; }
 .navlink {
     color: var(--muted);
     text-decoration: none;
@@ -56,6 +58,31 @@ h1, h2 { margin: 0; }
 .userbox { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .user { color: var(--muted); font-size: 13px; font-weight: 600; }
 .navlink.salir { color: var(--danger); }
+
+/* Botón hamburguesa (solo mobile) */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 11px 10px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+.hamburger span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background: var(--text);
+    border-radius: 2px;
+    transition: transform .2s, opacity .2s;
+}
+.hamburger.abierto span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.abierto span:nth-child(2) { opacity: 0; }
+.hamburger.abierto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 .content { max-width: 1500px; margin: 0 auto; padding: 24px; }
 
@@ -333,14 +360,26 @@ textarea { resize: vertical; width: 100%; }
 .grilla .acciones { display: flex; gap: 6px; }
 .grilla .btn { min-height: 32px; padding: 5px 10px; font-size: 13px; }
 
+/* ---------- Tablet / mobile: menú hamburguesa ---------- */
+@media (max-width: 820px) {
+    .topbar { flex-direction: column; align-items: stretch; gap: 0; padding: 8px 12px; }
+    .topbar-row { width: 100%; justify-content: space-between; }
+    .brand { font-size: 15px; }
+    .hamburger { display: flex; }
+
+    .nav-collapse { display: none; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 0 4px; }
+    .nav-collapse.abierto { display: flex; }
+    .links { flex-direction: column; width: 100%; gap: 4px; }
+    .navlink { padding: 13px 14px; }
+
+    .userbox { margin-left: 0; justify-content: space-between; padding-top: 10px; margin-top: 6px; border-top: 1px solid var(--line); }
+    .user { font-size: 14px; }
+    .navlink.salir { padding: 13px 14px; }
+}
+
 /* ---------- Mobile (celulares) ---------- */
 @media (max-width: 640px) {
     .content { padding: 14px 12px; }
-
-    .topbar { height: auto; padding: 8px 10px; flex-wrap: wrap; gap: 10px; }
-    .brand { width: 100%; justify-content: center; text-align: center; font-size: 15px; }
-    .links { width: 100%; gap: 6px; }
-    .navlink { flex: 1; text-align: center; padding: 12px 8px; }
 
     .page-head h1 { font-size: 19px; }
     .page-head p { font-size: 13px; }

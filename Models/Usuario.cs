@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ControlLavados.Models;
 
 /// <summary>Usuario de la aplicación. El acceso es por Microsoft 365 (Entra ID);
-/// esta tabla solo define quién es administrador.</summary>
+/// esta tabla define el perfil (rol) de cada uno.</summary>
 public class Usuario
 {
     public int Id { get; set; }
@@ -14,11 +15,19 @@ public class Usuario
     [MaxLength(120)]
     public string? Nombre { get; set; }
 
-    /// <summary>Admin = accede a Reportes, Configuración y gestión de usuarios.
-    /// Si es false, es operario (solo pantallas de carga).</summary>
-    public bool EsAdmin { get; set; }
+    /// <summary>Perfil de acceso: Operario (carga), Administrativo (+ Reportes/Config)
+    /// o Admin (todo, incluida gestión de usuarios).</summary>
+    public RolUsuario Rol { get; set; } = RolUsuario.Operario;
 
     public bool Activo { get; set; } = true;
 
     public DateTime? UltimoAcceso { get; set; }
+
+    /// <summary>Admin = ve todo, incluida la gestión de usuarios.</summary>
+    [NotMapped]
+    public bool EsAdmin => Rol == RolUsuario.Admin;
+
+    /// <summary>Administrativo o Admin = puede ver Reportes y Configuración.</summary>
+    [NotMapped]
+    public bool PuedeGestionar => Rol >= RolUsuario.Administrativo;
 }

@@ -1,6 +1,6 @@
 @page "/catalogos"
 @rendermode InteractiveServer
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Admin,Administrativo")]
 @inject CatalogoService Cat
 @inject ImportacionService Imp
 

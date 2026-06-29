@@ -17,6 +17,18 @@ public enum TipoOperario
 }
 
 /// <summary>
+/// Perfil de acceso del usuario.
+/// Operario: solo pantallas de carga. Administrativo: + Reportes y Configuración.
+/// Admin: todo, incluida la gestión de usuarios.
+/// </summary>
+public enum RolUsuario
+{
+    Operario = 0,
+    Administrativo = 1,
+    Admin = 2
+}
+
+/// <summary>
 /// Estados del proceso.
 /// Camión:  Pendiente -> Atracado -> Lavando -> LavadoTerminado -> Finalizado
 /// Hielo:   Pendiente -> Lavando -> Finalizado
