@@ -23,11 +23,6 @@ public class RolClaimsTransformation : IClaimsTransformation
         if (identity is null || !identity.IsAuthenticated)
             return principal;
 
-        // Modo demo / local (login apagado): el rol ya viene del DevAuthHandler.
-        // No consultamos la base (evita depender de la tabla de usuarios).
-        if (identity.AuthenticationType == DevAuthHandler.SchemeName)
-            return principal;
-
         // Evita reprocesar si ya se transformó en este request.
         if (principal.HasClaim(c => c.Type == "rol_resuelto"))
             return principal;
@@ -40,7 +35,16 @@ public class RolClaimsTransformation : IClaimsTransformation
             return principal;
 
         var nombre = principal.FindFirst("name")?.Value ?? principal.Identity?.Name;
-        var usuario = await _usuarios.ResolverEnLoginAsync(email, nombre);
+        Usuario? usuario;
+        try
+        {
+            usuario = await _usuarios.ResolverEnLoginAsync(email, nombre);
+        }
+        catch
+        {
+            // Ante un problema transitorio de base, no rompemos el acceso (entra sin rol elevado).
+            return principal;
+        }
 
         identity.AddClaim(new Claim("rol_resuelto", "1"));
         if (usuario is not null)

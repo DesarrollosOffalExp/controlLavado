@@ -1,8 +1,6 @@
 @* Barra de navegación. Es su propia isla interactiva (InteractiveServer) para que
    el menú hamburguesa funcione: el MainLayout se renderiza estático (SSR). *@
 @rendermode InteractiveServer
-@inject IHostEnvironment Env
-@inject IConfiguration Config
 
 <nav class="topbar">
     <div class="topbar-row">
@@ -30,10 +28,7 @@
             <Authorized>
                 <div class="userbox">
                     <span class="user">@context.User.Identity?.Name</span>
-                    @if (EntraHabilitado)
-                    {
-                        <a class="navlink salir" href="/MicrosoftIdentity/Account/SignOut">Salir</a>
-                    }
+                    <a class="navlink salir" href="/logout">Salir</a>
                 </div>
             </Authorized>
         </AuthorizeView>
@@ -41,9 +36,6 @@
 </nav>
 
 @code {
-    // El login de Microsoft (y el botón Salir) solo aplican si Entra está prendido.
-    private bool EntraHabilitado => Config.GetValue<bool>("AzureAd:Enabled") && !Env.IsDevelopment();
-
     private bool menuOpen;
     private void ToggleMenu() => menuOpen = !menuOpen;
     private void CerrarMenu() => menuOpen = false;

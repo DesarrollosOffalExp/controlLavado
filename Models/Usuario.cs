@@ -23,6 +23,11 @@ public class Usuario
 
     public DateTime? UltimoAcceso { get; set; }
 
+    /// <summary>Hash de la contraseña para cuentas locales (email/contraseña).
+    /// Null para usuarios que entran por Microsoft 365.</summary>
+    [MaxLength(255)]
+    public string? PasswordHash { get; set; }
+
     /// <summary>Admin = ve todo, incluida la gestión de usuarios.</summary>
     [NotMapped]
     public bool EsAdmin => Rol == RolUsuario.Admin;

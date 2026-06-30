@@ -3,6 +3,7 @@ using ControlLavados.Components;
 using ControlLavados.Data;
 using ControlLavados.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -27,23 +28,36 @@ builder.Services.AddScoped<ImportacionService>();
 builder.Services.AddScoped<UsuarioService>();
 
 // ---------- Autenticación ----------
-// Interruptor: el login con Microsoft 365 (Entra) se activa SOLO si AzureAd:Enabled = true.
-// Apagado (default) => la app funciona abierta y auto-loguea como admin (DevAuthHandler).
-// Para prenderlo en Azure: App settings AzureAd__Enabled = true.
+// Cookie propia (login con email/contraseña). El login con Microsoft 365 se suma
+// si AzureAd:Enabled = true (producción). La pantalla /login ofrece ambos métodos.
 var entraHabilitado = builder.Configuration.GetValue<bool>("AzureAd:Enabled")
     && !builder.Environment.IsDevelopment();
+
+var authBuilder = builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+{
+    options.LoginPath = "/login";
+    options.AccessDeniedPath = "/login";
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    options.SlidingExpiration = true;
+});
+
 if (entraHabilitado)
 {
-    // Login con Microsoft 365 (Entra ID).
-    builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-        .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+    // Login con Microsoft 365 (Entra ID): firma en la cookie de arriba.
+    authBuilder.AddMicrosoftIdentityWebApp(
+        builder.Configuration,
+        configSectionName: "AzureAd",
+        openIdConnectScheme: OpenIdConnectDefaults.AuthenticationScheme,
+        cookieScheme: null);
+    builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme,
+        o => o.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
     builder.Services.AddControllersWithViews().AddMicrosoftIdentityUI();
-}
-else
-{
-    // Sin login: se simula el usuario admin para que todo funcione (demo / local).
-    builder.Services.AddAuthentication(DevAuthHandler.SchemeName)
-        .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>(DevAuthHandler.SchemeName, null);
 }
 
 builder.Services.AddAuthorization(options =>
@@ -53,6 +67,7 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IClaimsTransformation, RolClaimsTransformation>();
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
@@ -82,7 +97,8 @@ CREATE TABLE lavados.LavadosUsuarios (
     Nombre nvarchar(120) NULL,
     Rol int NOT NULL DEFAULT 0,
     Activo bit NOT NULL DEFAULT 1,
-    UltimoAcceso datetime2 NULL
+    UltimoAcceso datetime2 NULL,
+    PasswordHash nvarchar(255) NULL
 );");
 
     // Perfiles (Operario/Administrativo/Admin): agrega la columna Rol si falta y la
@@ -94,6 +110,10 @@ BEGIN
     IF COL_LENGTH('lavados.LavadosUsuarios','EsAdmin') IS NOT NULL
         EXEC('UPDATE lavados.LavadosUsuarios SET Rol = 2 WHERE EsAdmin = 1');
 END");
+
+    // Cuentas locales (email/contraseña): columna de contraseña hasheada.
+    db.Database.ExecuteSqlRaw(@"IF COL_LENGTH('lavados.LavadosUsuarios','PasswordHash') IS NULL
+    ALTER TABLE lavados.LavadosUsuarios ADD PasswordHash nvarchar(255) NULL;");
     CatalogoService.Seed(db);
 
     // Limpieza de datos: formato único (patentes "AA 999 AA", textos en MAYÚSCULAS)
@@ -114,9 +134,19 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+// Los estáticos (CSS/JS/favicon, blazor.web.js) deben servirse sin login,
+// para que la propia pantalla de /login tenga estilos.
+app.MapStaticAssets().AllowAnonymous();
 if (entraHabilitado)
-    app.MapControllers(); // endpoints de sign-in / sign-out de Microsoft Identity
+    app.MapControllers().AllowAnonymous(); // sign-in de Microsoft accesible sin login
+
+// Cierre de sesión (cookie local y/o Microsoft).
+app.MapGet("/logout", async (HttpContext ctx) =>
+{
+    await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/login");
+});
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
