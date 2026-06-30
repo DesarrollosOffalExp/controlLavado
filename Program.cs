@@ -95,6 +95,11 @@ BEGIN
         EXEC('UPDATE lavados.LavadosUsuarios SET Rol = 2 WHERE EsAdmin = 1');
 END");
     CatalogoService.Seed(db);
+
+    // Limpieza de datos: formato único (patentes "AA 999 AA", textos en MAYÚSCULAS)
+    // y eliminación de duplicados en todas las tablas. Idempotente.
+    var catalogoSvc = scope.ServiceProvider.GetRequiredService<CatalogoService>();
+    await catalogoSvc.NormalizarYDeduplicarAsync();
 }
 
 if (!app.Environment.IsDevelopment())
