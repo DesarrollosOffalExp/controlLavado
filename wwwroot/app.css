@@ -129,6 +129,55 @@ h1, h2 { margin: 0; }
 .btn-ms { background: #2f2f2f; color: #fff; display: flex; align-items: center; justify-content: center; text-decoration: none; }
 .btn-ms:hover { filter: brightness(1.15); }
 
+/* ---------- Widget de soporte (flotante) ---------- */
+.soporte {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+}
+.soporte-fab {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 12px 30px rgba(99, 102, 241, .5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .15s ease, filter .15s ease;
+}
+.soporte-fab:hover { filter: brightness(1.1); transform: translateY(-2px); }
+.soporte-panel {
+    width: 320px;
+    max-width: calc(100vw - 40px);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+    animation: page-enter .18s ease both;
+}
+.soporte-head { display: flex; align-items: center; justify-content: space-between; }
+.soporte-head strong { font-size: 15px; }
+.soporte-x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
+.soporte-x:hover { color: var(--text); }
+.soporte-panel label { margin-top: 10px; }
+
+@media (max-width: 640px) {
+    .soporte { right: 14px; bottom: 14px; }
+}
+
 /* ---------- Transición entre pantallas ---------- */
 @keyframes page-enter {
     from { opacity: 0; transform: translateY(10px); }

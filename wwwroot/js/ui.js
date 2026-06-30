@@ -24,3 +24,8 @@
         init();
     }
 })();
+
+// Abre el cliente de correo con el ticket pre-armado (widget de soporte).
+window.abrirCorreo = function (url) {
+    window.location.href = url;
+};

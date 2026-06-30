@@ -1,0 +1,53 @@
+@* Widget flotante de ayuda/soporte: abre un panel y arma un ticket por correo
+   a tickets@offal.com.ar con el problema. Isla interactiva. *@
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthProvider
+
+<div class="soporte">
+    @if (abierto)
+    {
+        <div class="soporte-panel">
+            <div class="soporte-head">
+                <strong>¿Necesitás ayuda?</strong>
+                <button class="soporte-x" @onclick="() => abierto = false" aria-label="Cerrar">✕</button>
+            </div>
+            <p class="muted" style="font-size:13px;margin:0 0 4px">Contanos el problema y enviamos un ticket a soporte.</p>
+            <label><span>Asunto</span><input @bind="asunto" placeholder="Ej: no puedo iniciar un lavado" /></label>
+            <label><span>Descripción</span><textarea rows="4" @bind="descripcion" placeholder="Contá qué pasó…"></textarea></label>
+            <button class="btn btn-primary btn-block" style="margin-top:12px" @onclick="Enviar" disabled="@(!Puede)">Enviar ticket</button>
+        </div>
+    }
+    <button class="soporte-fab" @onclick="() => abierto = !abierto" aria-label="Ayuda / Soporte" title="Ayuda / Soporte">?</button>
+</div>
+
+@code {
+    private bool abierto;
+    private string asunto = "";
+    private string descripcion = "";
+    private string? usuario;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = await AuthProvider.GetAuthenticationStateAsync();
+        usuario = estado.User.Identity?.Name;
+    }
+
+    private bool Puede => !string.IsNullOrWhiteSpace(descripcion);
+
+    private async Task Enviar()
+    {
+        var asuntoTxt = string.IsNullOrWhiteSpace(asunto) ? "Soporte — Control de Lavados" : $"[Control de Lavados] {asunto}";
+        var cuerpo =
+            $"{descripcion}\n\n" +
+            "------------------------------\n" +
+            $"Enviado por: {usuario}\n" +
+            $"Pantalla: {Nav.Uri}\n";
+        var url = $"mailto:tickets@offal.com.ar?subject={Uri.EscapeDataString(asuntoTxt)}&body={Uri.EscapeDataString(cuerpo)}";
+        await JS.InvokeVoidAsync("abrirCorreo", url);
+        abierto = false;
+        asunto = "";
+        descripcion = "";
+    }
+}
