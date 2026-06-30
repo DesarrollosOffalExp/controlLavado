@@ -85,6 +85,58 @@ public class UsuarioService
         return u.Activo ? u : null;
     }
 
+    /// <summary>Invita a una persona por email: crea (o reactiva) la cuenta pendiente con un
+    /// token, y devuelve el token para armar el link de invitación.</summary>
+    public async Task<(Usuario? Usuario, string? Token, string? Error)> InvitarAsync(string email, string? nombre, RolUsuario rol)
+    {
+        email = (email ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            return (null, null, "Ingresá un email válido.");
+
+        await using var db = await _factory.CreateDbContextAsync();
+        var u = await db.Usuarios.FirstOrDefaultAsync(x => x.Email == email);
+        var token = Guid.NewGuid().ToString("N");
+        if (u is null)
+        {
+            u = new Usuario { Email = email, Nombre = string.IsNullOrWhiteSpace(nombre) ? null : nombre.Trim(), Rol = rol, Activo = true };
+            db.Usuarios.Add(u);
+        }
+        else
+        {
+            u.Rol = rol;
+            if (!string.IsNullOrWhiteSpace(nombre)) u.Nombre = nombre.Trim();
+            u.Activo = true;
+        }
+        u.InvitacionToken = token;
+        u.InvitacionExpira = DateTime.Now.AddDays(7);
+        await db.SaveChangesAsync();
+        return (u, token, null);
+    }
+
+    /// <summary>Devuelve el usuario de una invitación válida (token correcto y no vencido).</summary>
+    public async Task<Usuario?> ValidarInvitacionAsync(string token)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var u = await db.Usuarios.FirstOrDefaultAsync(x => x.InvitacionToken == token);
+        return (u is null || u.InvitacionExpira < DateTime.Now) ? null : u;
+    }
+
+    /// <summary>Activa la cuenta invitada: define la contraseña y consume el token.</summary>
+    public async Task<Usuario?> ActivarPorInvitacionAsync(string token, string password)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 6) return null;
+        await using var db = await _factory.CreateDbContextAsync();
+        var u = await db.Usuarios.FirstOrDefaultAsync(x => x.InvitacionToken == token);
+        if (u is null || u.InvitacionExpira < DateTime.Now) return null;
+        u.PasswordHash = Hasher.HashPassword(u, password);
+        u.InvitacionToken = null;
+        u.InvitacionExpira = null;
+        u.Activo = true;
+        u.UltimoAcceso = DateTime.Now;
+        await db.SaveChangesAsync();
+        return u;
+    }
+
     public async Task GuardarAsync(Usuario u)
     {
         u.Email = u.Email.Trim().ToLowerInvariant();

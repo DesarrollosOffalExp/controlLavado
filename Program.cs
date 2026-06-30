@@ -26,6 +26,8 @@ builder.Services.AddScoped<ReporteService>();
 builder.Services.AddScoped<CatalogoService>();
 builder.Services.AddScoped<ImportacionService>();
 builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<GraphMailService>();
 
 // ---------- Autenticación ----------
 // Cookie propia (login con email/contraseña). El login con Microsoft 365 se suma
@@ -115,6 +117,12 @@ END");
     // Cuentas locales (email/contraseña): columna de contraseña hasheada.
     db.Database.ExecuteSqlRaw(@"IF COL_LENGTH('lavados.LavadosUsuarios','PasswordHash') IS NULL
     ALTER TABLE lavados.LavadosUsuarios ADD PasswordHash nvarchar(255) NULL;");
+
+    // Invitaciones: token y vencimiento.
+    db.Database.ExecuteSqlRaw(@"IF COL_LENGTH('lavados.LavadosUsuarios','InvitacionToken') IS NULL
+    ALTER TABLE lavados.LavadosUsuarios ADD InvitacionToken nvarchar(80) NULL;");
+    db.Database.ExecuteSqlRaw(@"IF COL_LENGTH('lavados.LavadosUsuarios','InvitacionExpira') IS NULL
+    ALTER TABLE lavados.LavadosUsuarios ADD InvitacionExpira datetime2 NULL;");
     CatalogoService.Seed(db);
 
     // Limpieza de datos: formato único (patentes "AA 999 AA", textos en MAYÚSCULAS)

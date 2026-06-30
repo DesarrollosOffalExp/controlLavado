@@ -3,19 +3,22 @@
 @attribute [Authorize(Roles = "Admin")]
 @using System.Globalization
 @inject UsuarioService Svc
+@inject GraphMailService Mail
+@inject NavigationManager Nav
 
 <PageTitle>Usuarios</PageTitle>
 
 <header class="page-head">
     <h1>Usuarios</h1>
-    <p>Quién puede entrar y quién es administrador. Cualquier usuario de la empresa entra como operario; acá lo promovés a admin.</p>
+    <p>Invitá personas por correo y definí su perfil. La invitación crea la cuenta y le manda un link para entrar.</p>
 </header>
 
 <div class="panel">
     <section class="card">
-        <h2>Agregar / promover</h2>
+        <h2>Invitar por correo</h2>
+        <p class="muted" style="font-size:13px; margin:-4px 0 4px">Se crea la cuenta y se le envía un link para que defina su contraseña e ingrese.</p>
         <div class="form-grid">
-            <label><span>Email (Microsoft 365)</span><input @bind="nuevo.Email" placeholder="usuario@offal.com.ar" /></label>
+            <label><span>Email</span><input @bind="nuevo.Email" placeholder="persona@email.com" /></label>
             <label><span>Nombre (opcional)</span><input @bind="nuevo.Nombre" /></label>
             <label><span>Rol</span>
                 <select @bind="nuevo.Rol">
@@ -27,8 +30,18 @@
         </div>
         @if (error is not null) { <p class="error">@error</p> }
         <div class="curso-actions">
-            <button class="btn btn-primary" @onclick="Agregar">Guardar</button>
+            <button class="btn btn-primary" @onclick="Invitar">Invitar</button>
         </div>
+        @if (resultado is not null)
+        {
+            <div class="invite-result">
+                <p>@resultado</p>
+                @if (link is not null)
+                {
+                    <label><span>Link de invitación (copialo y enviáselo si hace falta)</span><input value="@link" readonly /></label>
+                }
+            </div>
+        }
     </section>
 
     <section class="card">
@@ -67,20 +80,30 @@
     private List<Usuario> usuarios = new();
     private Usuario nuevo = new();
     private string? error;
+    private string? resultado;
+    private string? link;
 
     protected override async Task OnInitializedAsync() => await Cargar();
 
     private async Task Cargar() => usuarios = await Svc.ListarAsync();
 
-    private async Task Agregar()
+    private async Task Invitar()
     {
-        error = null;
-        if (string.IsNullOrWhiteSpace(nuevo.Email) || !nuevo.Email.Contains('@'))
-        {
-            error = "Ingresá un email válido.";
-            return;
-        }
-        await Svc.GuardarAsync(nuevo);
+        error = null; resultado = null; link = null;
+        var (u, token, err) = await Svc.InvitarAsync(nuevo.Email, nuevo.Nombre, nuevo.Rol);
+        if (u is null) { error = err; return; }
+
+        link = $"{Nav.BaseUri}invitacion?token={token}";
+        var html =
+            $"<p>Te invitaron a <b>Control de Lavados</b>.</p>" +
+            $"<p>Para activar tu cuenta y definir tu contraseña, entrá a este link:</p>" +
+            $"<p><a href=\"{link}\">{link}</a></p>" +
+            $"<p style=\"color:#888\">El link vence en 7 días.</p>";
+        var enviado = await Mail.EnviarAsync(u.Email, "Invitación — Control de Lavados", html);
+        resultado = enviado
+            ? $"Listo: le enviamos el correo a {u.Email}."
+            : $"Cuenta creada para {u.Email}. El envío automático de correos no está configurado todavía — copiá el link de abajo y enviáselo.";
+
         nuevo = new();
         await Cargar();
     }

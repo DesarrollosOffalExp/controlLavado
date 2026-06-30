@@ -33,27 +33,12 @@
         <div class="login-sep"><span>o con tu email</span></div>
     }
 
-    @if (!ModoRegistro)
-    {
-        <EditForm Model="login" FormName="login" OnValidSubmit="Ingresar">
-            <DataAnnotationsValidator />
-            <label><span>Email</span><InputText @bind-Value="login.Email" autocomplete="username" placeholder="tu@email.com" /></label>
-            <label><span>Contraseña</span><InputText type="password" @bind-Value="login.Password" autocomplete="current-password" /></label>
-            <button class="btn btn-primary btn-block" type="submit">Ingresar</button>
-        </EditForm>
-        <p class="login-alt">¿No tenés cuenta? <a href="login?registro=true">Registrate</a></p>
-    }
-    else
-    {
-        <EditForm Model="registro" FormName="registro" OnValidSubmit="Registrar">
-            <DataAnnotationsValidator />
-            <label><span>Nombre</span><InputText @bind-Value="registro.Nombre" /></label>
-            <label><span>Email</span><InputText @bind-Value="registro.Email" autocomplete="username" placeholder="tu@email.com" /></label>
-            <label><span>Contraseña</span><InputText type="password" @bind-Value="registro.Password" autocomplete="new-password" placeholder="mínimo 6 caracteres" /></label>
-            <button class="btn btn-primary btn-block" type="submit">Crear cuenta</button>
-        </EditForm>
-        <p class="login-alt">¿Ya tenés cuenta? <a href="login">Iniciá sesión</a></p>
-    }
+    <EditForm Model="login" FormName="login" OnValidSubmit="Ingresar">
+        <DataAnnotationsValidator />
+        <label><span>Email</span><InputText @bind-Value="login.Email" autocomplete="username" placeholder="tu@email.com" /></label>
+        <label><span>Contraseña</span><InputText type="password" @bind-Value="login.Password" autocomplete="current-password" /></label>
+        <button class="btn btn-primary btn-block" type="submit">Ingresar</button>
+    </EditForm>
 
     @if (EsDev)
     {
@@ -66,9 +51,7 @@
 @code {
     [CascadingParameter] public HttpContext HttpContext { get; set; } = default!;
     [SupplyParameterFromForm(FormName = "login")] private LoginModel login { get; set; } = new();
-    [SupplyParameterFromForm(FormName = "registro")] private RegistroModel registro { get; set; } = new();
     [SupplyParameterFromForm(FormName = "dev")] private DevModel dev { get; set; } = new();
-    [SupplyParameterFromQuery(Name = "registro")] public bool? EsRegistro { get; set; }
 
     private string? error;
 
@@ -77,11 +60,9 @@
         // Las props [SupplyParameterFromForm] que no corresponden al form enviado
         // llegan en null; las reinicializamos para que sus EditForm no fallen.
         login ??= new();
-        registro ??= new();
         dev ??= new();
     }
 
-    private bool ModoRegistro => EsRegistro == true;
     private bool EntraHabilitado => Config.GetValue<bool>("AzureAd:Enabled") && !Env.IsDevelopment();
     private bool EsDev => Env.IsDevelopment();
 
@@ -89,13 +70,6 @@
     {
         var u = await Usuarios.ValidarLocalAsync(login.Email, login.Password);
         if (u is null) { error = "Email o contraseña incorrectos."; return; }
-        await IngresarConCookie(u);
-    }
-
-    private async Task Registrar()
-    {
-        var (u, err) = await Usuarios.RegistrarLocalAsync(registro.Email, registro.Password, registro.Nombre);
-        if (u is null) { error = err; return; }
         await IngresarConCookie(u);
     }
 
@@ -115,13 +89,6 @@
 
     public class LoginModel
     {
-        [Required] public string Email { get; set; } = "";
-        [Required] public string Password { get; set; } = "";
-    }
-
-    public class RegistroModel
-    {
-        public string? Nombre { get; set; }
         [Required] public string Email { get; set; } = "";
         [Required] public string Password { get; set; } = "";
     }

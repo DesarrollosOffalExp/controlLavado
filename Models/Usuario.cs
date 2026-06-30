@@ -28,6 +28,14 @@ public class Usuario
     [MaxLength(255)]
     public string? PasswordHash { get; set; }
 
+    /// <summary>Token de invitación (cuenta creada por un admin, pendiente de activar).
+    /// La persona usa el link con este token para definir su contraseña.</summary>
+    [MaxLength(80)]
+    public string? InvitacionToken { get; set; }
+
+    /// <summary>Vencimiento del token de invitación.</summary>
+    public DateTime? InvitacionExpira { get; set; }
+
     /// <summary>Admin = ve todo, incluida la gestión de usuarios.</summary>
     [NotMapped]
     public bool EsAdmin => Rol == RolUsuario.Admin;

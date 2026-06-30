@@ -1,0 +1,76 @@
+@page "/invitacion"
+@using ControlLavados.Components.Layout
+@layout LoginLayout
+@attribute [AllowAnonymous]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using ControlLavados.Auth
+@inject UsuarioService Usuarios
+@inject NavigationManager Nav
+
+<PageTitle>Activar cuenta — Control de Lavados</PageTitle>
+
+<div class="login-card">
+    <div class="login-brand">
+        <img src="favicon.png" alt="Offal" class="login-logo" />
+        <div>
+            <h1>Control de Lavados</h1>
+            <p class="muted">Activá tu cuenta</p>
+        </div>
+    </div>
+
+    @if (usuario is null)
+    {
+        <p class="login-error">La invitación no es válida o venció. Pedile al administrador que te invite de nuevo.</p>
+        <p class="login-alt"><a href="login">Ir al inicio de sesión</a></p>
+    }
+    else
+    {
+        <p class="muted" style="font-size:13px">Cuenta: <b>@usuario.Email</b>. Definí tu contraseña para entrar.</p>
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <p class="login-error">@error</p>
+        }
+        <EditForm Model="modelo" FormName="activar" OnValidSubmit="Activar">
+            <DataAnnotationsValidator />
+            <label><span>Contraseña</span><InputText type="password" @bind-Value="modelo.Password" autocomplete="new-password" placeholder="mínimo 6 caracteres" /></label>
+            <label><span>Repetir contraseña</span><InputText type="password" @bind-Value="modelo.Password2" autocomplete="new-password" /></label>
+            <button class="btn btn-primary btn-block" type="submit">Activar y entrar</button>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public HttpContext HttpContext { get; set; } = default!;
+    [SupplyParameterFromQuery] public string? Token { get; set; }
+    [SupplyParameterFromForm(FormName = "activar")] private ActivarModel modelo { get; set; } = new();
+
+    private Usuario? usuario;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        modelo ??= new();
+        if (!string.IsNullOrWhiteSpace(Token))
+            usuario = await Usuarios.ValidarInvitacionAsync(Token);
+    }
+
+    private async Task Activar()
+    {
+        if (modelo.Password != modelo.Password2) { error = "Las contraseñas no coinciden."; return; }
+        var u = await Usuarios.ActivarPorInvitacionAsync(Token ?? "", modelo.Password);
+        if (u is null) { error = "No se pudo activar (contraseña muy corta o invitación vencida)."; return; }
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            Principales.CrearLocal(u),
+            new AuthenticationProperties { IsPersistent = true });
+        Nav.NavigateTo("/", forceLoad: true);
+    }
+
+    public class ActivarModel
+    {
+        [Required] public string Password { get; set; } = "";
+        [Required] public string Password2 { get; set; } = "";
+    }
+}
