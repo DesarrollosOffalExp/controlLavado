@@ -86,6 +86,16 @@ h1, h2 { margin: 0; }
 
 .content { max-width: 1500px; margin: 0 auto; padding: 24px; }
 
+/* ---------- Transición entre pantallas ---------- */
+@keyframes page-enter {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.content.page-enter { animation: page-enter .26s cubic-bezier(.2, .7, .2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+    .content.page-enter { animation: none; }
+}
+
 /* ---------- Page header ---------- */
 .page-head { margin-bottom: 20px; }
 .page-head h1 { font-size: 22px; }
@@ -325,6 +335,12 @@ textarea { resize: vertical; width: 100%; }
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 14px;
+    transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.curso:hover {
+    border-color: var(--accent-2);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .35);
 }
 .curso-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .curso-head strong { font-size: 16px; }
