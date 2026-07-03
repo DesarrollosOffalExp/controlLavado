@@ -129,6 +129,22 @@ h1, h2 { margin: 0; }
 .btn-ms { background: #2f2f2f; color: #fff; display: flex; align-items: center; justify-content: center; text-decoration: none; }
 .btn-ms:hover { filter: brightness(1.15); }
 
+/* ---------- Pestañas (tabs) ---------- */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 14px;
+    cursor: pointer;
+    margin-bottom: -1px;
+}
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--text); border-bottom-color: var(--accent); }
+
 /* ---------- Resultado de invitación ---------- */
 .invite-result {
     margin-top: 12px;

@@ -10,6 +10,7 @@ public record MetricaSemana(
     int Semana,
     int Lavados,
     TimeSpan TotalHoras,
+    TimeSpan HorasNetas,
     TimeSpan PromedioHoras,
     int TotalOperarios,
     double PromedioOperarios,
@@ -28,6 +29,9 @@ public record OperarioResumen(string Operario, TipoOperario Tipo, int Camiones, 
 
 /// <summary>Resumen por operario y mes.</summary>
 public record OperarioMesResumen(string Mes, string Operario, int Camiones, int Lavados, int DiasTrabajados, TimeSpan Horas, TimeSpan Promedio);
+
+/// <summary>Nómina de operarios por día y turno (quiénes trabajaron cada turno ese día).</summary>
+public record NominaDia(string Fecha, List<string> Manana, List<string> Tarde);
 
 public class ReporteService
 {
@@ -75,6 +79,8 @@ public class ReporteService
                 g => (
                     Cant: g.Count(),
                     Total: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.TiempoTotal ?? TimeSpan.Zero)),
+                    // Horas NETAS de lavado (Fin de Lavado − Inicio de Lavado), sin atraco/desatraco.
+                    Neta: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.DurLavado ?? TimeSpan.Zero)),
                     // Operarios DISTINTOS de la semana: una persona cuenta 1 aunque haga varios lavados.
                     Operarios: g.SelectMany(l => l.Operarios)
                                 .Select(o => o.Nombre)
@@ -96,11 +102,31 @@ public class ReporteService
                     varLav = (double)(cur.Cant - prev.Cant) / prev.Cant;
             }
             semanas.Add(new MetricaSemana(
-                semana, cur.Cant, cur.Total,
+                semana, cur.Cant, cur.Total, cur.Neta,
                 TimeSpan.FromSeconds(cur.Total.TotalSeconds / cur.Cant),
                 cur.Operarios, (double)cur.Asignaciones / cur.Cant, varHoras, varLav));
         }
         return new MetricasTurno(etiqueta, semanas);
+    }
+
+    /// <summary>
+    /// Nómina por día: quiénes trabajaron en el turno Mañana y en el turno Tarde cada día
+    /// (personas distintas, sacado de los lavados/tareas cargados). Sin carga manual.
+    /// </summary>
+    public List<NominaDia> NominaPorDia(List<Lavado> lavados)
+    {
+        static List<string> Distintos(IEnumerable<Lavado> ls) =>
+            ls.SelectMany(l => l.Operarios).Select(o => o.Nombre)
+              .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n).ToList();
+
+        return lavados
+            .GroupBy(l => l.Fecha)
+            .OrderByDescending(g => g.Key)
+            .Select(g => new NominaDia(
+                g.Key.ToString("dd/MM/yyyy"),
+                Distintos(g.Where(l => l.Turno == Turnos.Mañana)),
+                Distintos(g.Where(l => l.Turno != Turnos.Mañana))))
+            .ToList();
     }
 
     /// <summary>
@@ -263,10 +289,10 @@ public class ReporteService
         {
             var etiqueta = t.Turno == "Resumen" ? "RESUMEN (TOTAL)" : $"TURNO: {t.Turno}";
             ws.Cell(row, 1).Value = etiqueta;
-            ws.Range(row, 1, row, 8).Merge().Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.LightGray);
+            ws.Range(row, 1, row, 9).Merge().Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.LightGray);
             row++;
 
-            string[] headers = { "Semana", "Lavados", "Total hs", "Prom. hs", "Operarios", "Prom. op.", "% Var. hs", "% Var. lavados" };
+            string[] headers = { "Semana", "Cantidad", "Total hs", "Neto hs", "Prom. hs", "Operarios", "Prom. op.", "% Var. hs", "% Var. cant." };
             for (int c = 0; c < headers.Length; c++)
             {
                 ws.Cell(row, c + 1).Value = headers[c];
@@ -279,11 +305,12 @@ public class ReporteService
                 ws.Cell(row, 1).Value = s.Semana;
                 ws.Cell(row, 2).Value = s.Lavados;
                 ws.Cell(row, 3).Value = FmtDur(s.TotalHoras);
-                ws.Cell(row, 4).Value = FmtDur(s.PromedioHoras);
-                ws.Cell(row, 5).Value = s.TotalOperarios;
-                ws.Cell(row, 6).Value = Math.Round(s.PromedioOperarios, 1);
-                ws.Cell(row, 7).Value = s.VarHoras.HasValue ? s.VarHoras.Value.ToString("P1", Es) : "—";
-                ws.Cell(row, 8).Value = s.VarLavados.HasValue ? s.VarLavados.Value.ToString("P1", Es) : "—";
+                ws.Cell(row, 4).Value = FmtDur(s.HorasNetas);
+                ws.Cell(row, 5).Value = FmtDur(s.PromedioHoras);
+                ws.Cell(row, 6).Value = s.TotalOperarios;
+                ws.Cell(row, 7).Value = Math.Round(s.PromedioOperarios, 1);
+                ws.Cell(row, 8).Value = s.VarHoras.HasValue ? s.VarHoras.Value.ToString("P1", Es) : "—";
+                ws.Cell(row, 9).Value = s.VarLavados.HasValue ? s.VarLavados.Value.ToString("P1", Es) : "—";
                 row++;
             }
             row++; // fila en blanco entre bloques
