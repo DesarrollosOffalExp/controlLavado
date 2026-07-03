@@ -39,7 +39,7 @@
             <button class="btn btn-ghost" @onclick="Limpiar">Limpiar filtros</button>
             <button class="btn btn-primary" @onclick="Exportar" disabled="@(lavados.Count == 0)">Exportar a Excel</button>
         </div>
-        <p class="muted" style="margin-top:10px">@lavados.Count lavados finalizados en el rango seleccionado.</p>
+        <p class="muted" style="margin-top:10px">@lavados.Count @(EtiquetaRegistros.ToLowerInvariant()) en el rango seleccionado.</p>
     </section>
 
     @if (metricas.Count == 0)
@@ -57,13 +57,14 @@
                         <thead>
                             <tr>
                                 <th>Semana</th>
-                                <th>Lavados</th>
+                                <th>@EtiquetaRegistros</th>
                                 <th>Total hs</th>
+                                <th>Neto hs</th>
                                 <th>Prom. hs</th>
                                 <th>Operarios</th>
                                 <th>Prom. op.</th>
                                 <th>% Var. hs</th>
-                                <th>% Var. lavados</th>
+                                <th>% Var. cant.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -73,6 +74,7 @@
                                     <td class="num">@s.Semana</td>
                                     <td class="num">@s.Lavados</td>
                                     <td class="num">@FmtDur(s.TotalHoras)</td>
+                                    <td class="num">@FmtDur(s.HorasNetas)</td>
                                     <td class="num">@FmtDur(s.PromedioHoras)</td>
                                     <td class="num">@s.TotalOperarios</td>
                                     <td class="num">@s.PromedioOperarios.ToString("0.0", Es)</td>
@@ -85,6 +87,32 @@
                 </div>
             </section>
         }
+
+        <section class="card">
+            <h2>Nómina por día <span class="info" tabindex="0" data-tip="@TipNomina">i</span></h2>
+            @if (nomina.Count == 0)
+            {
+                <p class="muted">Sin datos.</p>
+            }
+            else
+            {
+                <div class="tabla-scroll">
+                    <table class="grilla">
+                        <thead><tr><th>Día</th><th>Turno Mañana</th><th>Turno Tarde</th></tr></thead>
+                        <tbody>
+                            @foreach (var n in nomina)
+                            {
+                                <tr>
+                                    <td>@n.Fecha</td>
+                                    <td class="ops">@(n.Manana.Count == 0 ? "—" : $"({n.Manana.Count}) " + string.Join(", ", n.Manana))</td>
+                                    <td class="ops">@(n.Tarde.Count == 0 ? "—" : $"({n.Tarde.Count}) " + string.Join(", ", n.Tarde))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
 
         <section class="card">
             <h2>Horas por operario <span class="info" tabindex="0" data-tip="@TipHoras">i</span></h2>
@@ -202,6 +230,10 @@
         "• Hs trabajadas: suma de los tiempos totales.\n" +
         "• Prom. lavado: Hs trabajadas ÷ Lavados.";
 
+    private const string TipNomina =
+        "Quiénes trabajaron cada día en cada turno (personas distintas), sacado de los lavados/tareas cargados. " +
+        "No requiere carga manual: sale solo de lo registrado.";
+
     private string tipoSel = "Camion";
     private DateOnly? desde;
     private DateOnly? hasta;
@@ -210,7 +242,16 @@
     private List<MetricasTurno> metricas = new();
     private HorasReporte horas = new(new(), new());
     private List<OperarioMesResumen> resumenMes = new();
+    private List<NominaDia> nomina = new();
     private Dictionary<string, string?> turnoOperarios = new();
+
+    // "Lavados" para camiones; "Tareas" para Hielo/Hiel/Varias; "Registros" en Todos.
+    private string EtiquetaRegistros => tipoSel switch
+    {
+        "Camion" => "Lavados",
+        "Todos" => "Registros",
+        _ => "Tareas",
+    };
 
     protected override async Task OnInitializedAsync() => await Cargar();
 
@@ -234,6 +275,7 @@
         metricas = Rep.CalcularMetricas(lavados);
         horas = Rep.CalcularHorasPorOperario(lavados, turnoOperarios);
         resumenMes = Rep.ResumenPorMes(lavados);
+        nomina = Rep.NominaPorDia(lavados);
     }
 
     private async Task Limpiar()

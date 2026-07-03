@@ -63,7 +63,7 @@
 
     <!-- ===== OPERARIOS ===== -->
     <section class="card">
-        <h2>Operarios (@ops.Count)</h2>
+        <h2>Personal</h2>
         <div class="form-grid">
             <label><span>Apellido</span><input @bind="opEdit.Apellido" /></label>
             <label><span>Nombre</span><input @bind="opEdit.Nombre" /></label>
@@ -88,13 +88,17 @@
             <button class="btn btn-primary" @onclick="GuardarOp">@(opEdit.Id == 0 ? "Agregar" : "Guardar cambios")</button>
             @if (opEdit.Id != 0) { <button class="btn btn-ghost" @onclick="() => opEdit = new()">Cancelar</button> }
         </div>
-        <div class="tabla-scroll" style="margin-top:14px">
+        <div class="tabs" style="margin-top:14px">
+            <button class="tab @(!verInactivos ? "on" : "")" type="button" @onclick="() => verInactivos = false">Activos (@ops.Count(o => o.Activo))</button>
+            <button class="tab @(verInactivos ? "on" : "")" type="button" @onclick="() => verInactivos = true">No activos (@ops.Count(o => !o.Activo))</button>
+        </div>
+        <div class="tabla-scroll" style="margin-top:10px">
             <table class="grilla">
                 <thead><tr><th>Apellido</th><th>Nombre</th><th>DNI</th><th>Tipo</th><th>Turno</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
-                    @foreach (var o in ops)
+                    @foreach (var o in ops.Where(o => o.Activo != verInactivos))
                     {
-                        <tr style="@(o.Activo ? "" : "opacity:.5")">
+                        <tr>
                             <td>@o.Apellido</td><td>@o.Nombre</td><td>@o.Dni</td><td>@o.Tipo</td><td>@o.Turno</td>
                             <td>@(o.Activo ? "Activo" : "Baja")</td>
                             <td class="acciones">
@@ -200,6 +204,7 @@
     private Patente patEdit = new();
     private Frigorifico frigEdit = new();
     private string? errorOp, errorPat, errorFrig;
+    private bool verInactivos;   // pestaña de personal: activos (false) / no activos (true)
 
     // Importación
     private string rutaImport = "";

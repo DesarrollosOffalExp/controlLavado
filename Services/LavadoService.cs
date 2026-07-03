@@ -49,9 +49,14 @@ public class LavadoService
         {
             if (excluirId.HasValue && l.Id == excluirId.Value) continue;
 
-            foreach (var o in l.Operarios)
-                d.OperariosOcupados.Add(o.Nombre);
+            // Los operarios se liberan al TERMINAR el lavado: solo están ocupados
+            // mientras el proceso está Atracado o Lavando (no durante el desatraco).
+            if (l.Estado is EstadoLavado.Atracado or EstadoLavado.Lavando)
+                foreach (var o in l.Operarios)
+                    d.OperariosOcupados.Add(o.Nombre);
 
+            // La patente/dársena siguen ocupadas hasta que el lavado se finaliza
+            // (el camión sigue en la dársena hasta el desatraco).
             if (l.Tipo == tipo)
             {
                 if (!string.IsNullOrEmpty(l.Patente)) d.PatentesOcupadas.Add(l.Patente);
@@ -106,7 +111,10 @@ public class LavadoService
             && activos.Any(l => l.Tipo == tipo && l.Darsena == datos.Darsena))
             return new(false, $"La {datos.Darsena} ya está ocupada.", null);
 
-        var ocupados = activos.SelectMany(l => l.Operarios).Select(o => o.Nombre).ToHashSet();
+        // Un operario solo está ocupado mientras trabaja (Atracado/Lavando); se libera al terminar.
+        var ocupados = activos
+            .Where(l => l.Estado is EstadoLavado.Atracado or EstadoLavado.Lavando)
+            .SelectMany(l => l.Operarios).Select(o => o.Nombre).ToHashSet();
         var enConflicto = datos.Operarios.Where(o => ocupados.Contains(o)).ToList();
         if (enConflicto.Count > 0)
             return new(false, $"Operario(s) ya asignado(s) a otro lavado: {string.Join(", ", enConflicto)}.", null);
@@ -158,7 +166,7 @@ public class LavadoService
         },
         _ => l.Estado switch
         {
-            EstadoLavado.Lavando => "Fin de Lavado (Finalizar)",
+            EstadoLavado.Lavando => "Fin",
             _ => null,
         },
     };
