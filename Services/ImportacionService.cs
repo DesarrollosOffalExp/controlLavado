@@ -193,6 +193,8 @@ public class ImportacionService
             cInc = C("Incidencias genrales"), cMarca = C("Marca temporal"),
             cOffal = C("N° Operario Offal"), cAgencia = C("N° Operario Agencia"),
             cTurno = C("Turno");
+        // El Forms actual no trae frigorífico; se detecta por si se agrega a futuro.
+        int cFrig = new[] { "Frigorífico", "Frigorifico", "Proveedor" }.Select(C).FirstOrDefault(n => n > 0);
 
         if (cFecha < 0 || cPat < 0 || cAtr < 0)
             return new(false, 0, 0, 0, 0, 0, "No se encontraron las columnas esperadas (Fecha / Patente / Hora inicio Atraco).");
@@ -336,6 +338,7 @@ public class ImportacionService
             {
                 Tipo = TipoLavado.Camion,
                 Patente = patente,
+                Frigorifico = cFrig > 0 ? (row.Cell(cFrig).GetString().Trim() is { Length: > 0 } fr ? fr : null) : null,
                 Fecha = f,
                 InicioAtraco = inicioAtraco,
                 InicioLavado = CombRoll(inicioLav),

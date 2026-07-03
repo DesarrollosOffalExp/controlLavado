@@ -8,7 +8,8 @@ namespace ControlLavados.Services;
 
 public record MetricaSemana(
     int Semana,
-    int Lavados,
+    int Lavados,     // cantidad de LAVADOS (camiones). Las tareas no se contabilizan como cantidad.
+    int Registros,   // cantidad total de registros del grupo (camiones + tareas); denominador de promedios.
     TimeSpan TotalHoras,
     TimeSpan HorasNetas,
     TimeSpan PromedioHoras,
@@ -30,8 +31,11 @@ public record OperarioResumen(string Operario, TipoOperario Tipo, int Camiones, 
 /// <summary>Resumen por operario y mes.</summary>
 public record OperarioMesResumen(string Mes, string Operario, int Camiones, int Lavados, int DiasTrabajados, TimeSpan Horas, TimeSpan Promedio);
 
-/// <summary>Nómina de operarios por día y turno (quiénes trabajaron cada turno ese día).</summary>
-public record NominaDia(string Fecha, List<string> Manana, List<string> Tarde);
+/// <summary>Lavados agrupados por frigorífico (solo camiones).</summary>
+public record FrigorificoCant(string Frigorifico, int Cantidad);
+
+/// <summary>Contraste de nómina de una semana: activos totales vs cuántos trabajaron.</summary>
+public record NominaSemana(int Activos, int Trabajaron);
 
 public class ReporteService
 {
@@ -78,6 +82,8 @@ public class ReporteService
                 g => g.Key,
                 g => (
                     Cant: g.Count(),
+                    // Solo los LAVADOS (camiones) se contabilizan como cantidad; las tareas no.
+                    Lavados: g.Count(l => l.Tipo == TipoLavado.Camion),
                     Total: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.TiempoTotal ?? TimeSpan.Zero)),
                     // Horas NETAS de lavado (Fin de Lavado − Inicio de Lavado), sin atraco/desatraco.
                     Neta: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.DurLavado ?? TimeSpan.Zero)),
@@ -98,35 +104,41 @@ public class ReporteService
             {
                 if (prev.Total.Ticks > 0)
                     varHoras = (cur.Total.TotalSeconds - prev.Total.TotalSeconds) / prev.Total.TotalSeconds;
-                if (prev.Cant > 0)
-                    varLav = (double)(cur.Cant - prev.Cant) / prev.Cant;
+                // La variación de cantidad se calcula sobre los lavados (camiones), no sobre las tareas.
+                if (prev.Lavados > 0)
+                    varLav = (double)(cur.Lavados - prev.Lavados) / prev.Lavados;
             }
             semanas.Add(new MetricaSemana(
-                semana, cur.Cant, cur.Total, cur.Neta,
+                semana, cur.Lavados, cur.Cant, cur.Total, cur.Neta,
                 TimeSpan.FromSeconds(cur.Total.TotalSeconds / cur.Cant),
                 cur.Operarios, (double)cur.Asignaciones / cur.Cant, varHoras, varLav));
         }
         return new MetricasTurno(etiqueta, semanas);
     }
 
-    /// <summary>
-    /// Nómina por día: quiénes trabajaron en el turno Mañana y en el turno Tarde cada día
-    /// (personas distintas, sacado de los lavados/tareas cargados). Sin carga manual.
-    /// </summary>
-    public List<NominaDia> NominaPorDia(List<Lavado> lavados)
-    {
-        static List<string> Distintos(IEnumerable<Lavado> ls) =>
-            ls.SelectMany(l => l.Operarios).Select(o => o.Nombre)
-              .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n).ToList();
-
-        return lavados
-            .GroupBy(l => l.Fecha)
-            .OrderByDescending(g => g.Key)
-            .Select(g => new NominaDia(
-                g.Key.ToString("dd/MM/yyyy"),
-                Distintos(g.Where(l => l.Turno == Turnos.Mañana)),
-                Distintos(g.Where(l => l.Turno != Turnos.Mañana))))
+    /// <summary>Cantidad de lavados por frigorífico (solo camiones), de mayor a menor.</summary>
+    public List<FrigorificoCant> LavadosPorFrigorifico(List<Lavado> lavados) =>
+        lavados
+            .Where(l => l.Tipo == TipoLavado.Camion)
+            .GroupBy(l => string.IsNullOrWhiteSpace(l.Frigorifico) ? "(sin frigorífico)" : l.Frigorifico!.Trim())
+            .Select(g => new FrigorificoCant(g.Key, g.Count()))
+            .OrderByDescending(f => f.Cantidad)
+            .ThenBy(f => f.Frigorifico)
             .ToList();
+
+    /// <summary>
+    /// Contraste de nómina de la semana: cuántos operarios activos hay (nómina completa)
+    /// y cuántos de ellos efectivamente trabajaron o hicieron tareas esa semana.
+    /// </summary>
+    public NominaSemana NominaContraste(IEnumerable<string> operariosActivos, List<Lavado> lavadosSemana)
+    {
+        var activos = new HashSet<string>(operariosActivos, StringComparer.OrdinalIgnoreCase);
+        var trabajaron = lavadosSemana
+            .SelectMany(l => l.Operarios)
+            .Select(o => o.Nombre)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count(n => activos.Contains(n));
+        return new NominaSemana(activos.Count, trabajaron);
     }
 
     /// <summary>
@@ -214,6 +226,8 @@ public class ReporteService
     {
         using var wb = new XLWorkbook();
         EscribirMetricas(wb.AddWorksheet("Métricas"), metricas);
+        var frig = LavadosPorFrigorifico(lavados);
+        if (frig.Count > 0) EscribirFrigorificos(wb.AddWorksheet("Frigoríficos"), frig);
         EscribirHoras(wb.AddWorksheet("Horas por operario"), CalcularHorasPorOperario(lavados, turnoPorOperario));
         EscribirResumenMes(wb.AddWorksheet("Resumen por mes"), ResumenPorMes(lavados));
         EscribirDetalle(wb.AddWorksheet("Detalle"), lavados, tipo);
@@ -239,6 +253,23 @@ public class ReporteService
             ws.Cell(row, 4).Value = r.DiasTrabajados;
             ws.Cell(row, 5).Value = FmtDur(r.Horas);
             ws.Cell(row, 6).Value = FmtDur(r.Promedio);
+            row++;
+        }
+        ws.SheetView.FreezeRows(1);
+        ws.Columns().AdjustToContents();
+    }
+
+    private static void EscribirFrigorificos(IXLWorksheet ws, List<FrigorificoCant> filas)
+    {
+        ws.Cell(1, 1).Value = "Frigorífico";
+        ws.Cell(1, 2).Value = "Lavados";
+        ws.Range(1, 1, 1, 2).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.LightGray);
+
+        int row = 2;
+        foreach (var f in filas)
+        {
+            ws.Cell(row, 1).Value = f.Frigorifico;
+            ws.Cell(row, 2).Value = f.Cantidad;
             row++;
         }
         ws.SheetView.FreezeRows(1);
