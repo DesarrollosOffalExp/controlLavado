@@ -194,13 +194,13 @@
 
     // Textos de ayuda (tooltips) de cada reporte.
     private const string TipGeneral =
-        "Todos los reportes usan SOLO lavados/tareas finalizados de la SEMANA seleccionada (la métrica muestra también la semana anterior para la variación).\n\n" +
+        "Todos los reportes usan SOLO lavados/tareas finalizados de la SEMANA seleccionada (la variación se calcula contra la semana anterior, que no se muestra).\n\n" +
         "• Tiempo total: Camión = Desatraco − Atraco; Hielo/Hiel/Varias = Fin − Inicio.\n" +
         "• Turno: Mañana 06:00–18:59, Tarde el resto.\n" +
         "• Las TAREAS (Hielo/Hiel/Varias) NO se cuentan como cantidad; solo aportan su tiempo.";
 
     private const string TipMetricas =
-        "Métricas de la semana (y la anterior, para la variación). Un bloque por turno (Mañana / Tarde) y un bloque «Resumen».\n\n" +
+        "Métricas de la semana seleccionada. El % Var. compara contra la semana anterior. Un bloque por turno (Mañana / Tarde) y un bloque «Resumen».\n\n" +
         "• Lavados: cantidad de camiones (las tareas no se cuentan). Se oculta en circuitos de tareas.\n" +
         "• Total hs: suma de los tiempos; Neto hs: solo el lavado (Fin − Inicio); Prom. hs: ÷ registros.\n" +
         "• Operarios: personas DISTINTAS que trabajaron.\n" +
@@ -298,9 +298,14 @@
         foreach (var o in operarios)
             turnoOperarios[o.NombreCompleto] = o.Turno;
 
-        // La métrica incluye la semana anterior (para la variación); el resto, solo la semana elegida.
+        // Se carga la semana anterior solo para calcular la variación, pero NO se muestra:
+        // la tabla exhibe únicamente la fila de la semana pedida.
         var conPrev = await Rep.ObtenerAsync(TipoSeleccion(), lunesPrev, domingo);
-        metricas = Rep.CalcularMetricas(conPrev);
+        var semNum = ISOWeek.GetWeekOfYear(lunes.ToDateTime(TimeOnly.MinValue));
+        metricas = Rep.CalcularMetricas(conPrev)
+            .Select(t => t with { Semanas = t.Semanas.Where(s => s.Semana == semNum).ToList() })
+            .Where(t => t.Semanas.Count > 0)
+            .ToList();
 
         lavados = conPrev.Where(l => l.Fecha >= lunes).ToList();
         horas = Rep.CalcularHorasPorOperario(lavados, turnoOperarios);
