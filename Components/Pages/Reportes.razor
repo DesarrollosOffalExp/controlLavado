@@ -27,8 +27,17 @@
                 </select>
             </label>
             <label>
-                <span>Semana</span>
-                <select @bind="semanaKey" @bind:after="Cargar">
+                <span>Semana desde</span>
+                <select @bind="semanaDesdeKey" @bind:after="Cargar">
+                    @foreach (var s in semanas)
+                    {
+                        <option value="@s.Clave">@s.Etiqueta</option>
+                    }
+                </select>
+            </label>
+            <label>
+                <span>Semana hasta</span>
+                <select @bind="semanaHastaKey" @bind:after="Cargar">
                     @foreach (var s in semanas)
                     {
                         <option value="@s.Clave">@s.Etiqueta</option>
@@ -43,7 +52,7 @@
     </section>
 
     <section class="card">
-        <h2>Nómina de la semana <span class="info" tabindex="0" data-tip="@TipNomina">i</span></h2>
+        <h2>@NominaTitulo <span class="info" tabindex="0" data-tip="@TipNomina">i</span></h2>
         <div class="nomina-cifras">
             <div class="cifra">
                 <span class="n">@nomina.Activos</span>
@@ -81,6 +90,7 @@
                                 }
                                 <th>Total hs</th>
                                 <th>Neto hs</th>
+                                <th>HS hombre</th>
                                 <th>Prom. hs</th>
                                 <th>Operarios</th>
                                 <th>Prom. op.</th>
@@ -102,6 +112,7 @@
                                     }
                                     <td class="num">@FmtDur(s.TotalHoras)</td>
                                     <td class="num">@FmtDur(s.HorasNetas)</td>
+                                    <td class="num">@FmtDur(s.HsHombre)</td>
                                     <td class="num">@FmtDur(s.PromedioHoras)</td>
                                     <td class="num">@s.TotalOperarios</td>
                                     <td class="num">@s.PromedioOperarios.ToString("0.0", Es)</td>
@@ -194,32 +205,34 @@
 
     // Textos de ayuda (tooltips) de cada reporte.
     private const string TipGeneral =
-        "Todos los reportes usan SOLO lavados/tareas finalizados de la SEMANA seleccionada (la variación se calcula contra la semana anterior, que no se muestra).\n\n" +
+        "Todos los reportes usan SOLO lavados/tareas finalizados del PERÍODO seleccionado (semana desde → hasta). La variación de cada semana se calcula contra la anterior.\n\n" +
         "• Tiempo total: Camión = Desatraco − Atraco; Hielo/Hiel/Varias = Fin − Inicio.\n" +
         "• Turno: Mañana 06:00–18:59, Tarde el resto.\n" +
         "• Las TAREAS (Hielo/Hiel/Varias) NO se cuentan como cantidad; solo aportan su tiempo.";
 
     private const string TipMetricas =
-        "Métricas de la semana seleccionada. El % Var. compara contra la semana anterior. Un bloque por turno (Mañana / Tarde) y un bloque «Resumen».\n\n" +
+        "Métricas por semana del período (semana desde → hasta). El % Var. de cada semana compara contra la semana anterior. Un bloque por turno (Mañana / Tarde) y un bloque «Resumen».\n\n" +
         "• Lavados: cantidad de camiones (las tareas no se cuentan). Se oculta en circuitos de tareas.\n" +
         "• Total hs: suma de los tiempos; Neto hs: solo el lavado (Fin − Inicio); Prom. hs: ÷ registros.\n" +
+        "• HS hombre: por cada lavado, su tiempo × cantidad de operarios (horas-hombre reales).\n" +
         "• Operarios: personas DISTINTAS que trabajaron.\n" +
         "• % Var.: variación vs la semana anterior.";
 
     private const string TipFrigorifico =
-        "Cantidad de lavados de camión agrupados por frigorífico, en la semana seleccionada (de mayor a menor).";
+        "Cantidad de lavados de camión agrupados por frigorífico, en el período seleccionado (de mayor a menor).";
 
     private const string TipNomina =
-        "Contraste de la semana: cuántos operarios ACTIVOS hay en la nómina (Personal) y cuántos de ellos " +
-        "efectivamente trabajaron o hicieron tareas esa semana (en cualquier circuito).";
+        "Contraste del período: cuántos operarios ACTIVOS hay en la nómina (Personal) y cuántos de ellos " +
+        "efectivamente trabajaron o hicieron tareas en el rango (en cualquier circuito).";
 
     private const string TipHoras =
-        "Horas trabajadas por cada operario en la semana.\n\n" +
+        "Horas trabajadas por cada operario en el período.\n\n" +
         "• «hs» horas trabajadas y «d» días trabajados.\n" +
-        "• Total hs: suma de la semana.";
+        "• Total hs: suma del período.";
 
     private string tipoSel = "Camion";
-    private string semanaKey = "";
+    private string semanaDesdeKey = "";
+    private string semanaHastaKey = "";
 
     private List<Lavado> lavados = new();
     private List<MetricasTurno> metricas = new();
@@ -234,6 +247,8 @@
     // La columna de cantidad (lavados) solo aplica a camiones; en tareas se oculta.
     private bool MostrarCantidad => tipoSel is "Camion" or "Todos";
 
+    private string NominaTitulo => semanaDesdeKey == semanaHastaKey ? "Nómina de la semana" : "Nómina del período";
+
     private string ResumenTexto
     {
         get
@@ -242,9 +257,9 @@
             int tar = lavados.Count(l => l.Tipo != TipoLavado.Camion);
             return tipoSel switch
             {
-                "Camion" => $"{lav} lavados en la semana.",
-                "Todos" => $"{lav} lavados y {tar} tareas en la semana (las tareas no se contabilizan como cantidad, solo su tiempo).",
-                _ => $"{tar} tareas en la semana — solo se contabiliza el tiempo, no la cantidad.",
+                "Camion" => $"{lav} lavados en el período.",
+                "Todos" => $"{lav} lavados y {tar} tareas en el período (las tareas no se contabilizan como cantidad, solo su tiempo).",
+                _ => $"{tar} tareas en el período — solo se contabiliza el tiempo, no la cantidad.",
             };
         }
     }
@@ -255,14 +270,14 @@
         await Cargar();
     }
 
-    // Últimas 16 semanas (ISO), de la más reciente a la más antigua.
+    // Últimas 26 semanas (ISO), de la más reciente a la más antigua.
     private void ConstruirSemanas()
     {
         var hoy = DateOnly.FromDateTime(DateTime.Today);
         int diffLunes = ((int)hoy.DayOfWeek + 6) % 7; // días desde el lunes
         var lunesActual = hoy.AddDays(-diffLunes);
 
-        semanas = Enumerable.Range(0, 16)
+        semanas = Enumerable.Range(0, 26)
             .Select(i => lunesActual.AddDays(-7 * i))
             .Select(lunes =>
             {
@@ -273,8 +288,12 @@
             })
             .ToList();
 
-        if (string.IsNullOrEmpty(semanaKey) && semanas.Count > 0)
-            semanaKey = semanas[0].Clave;
+        // Por defecto, la semana actual (desde = hasta = semana en curso).
+        if (string.IsNullOrEmpty(semanaDesdeKey) && semanas.Count > 0)
+        {
+            semanaHastaKey = semanas[0].Clave;
+            semanaDesdeKey = semanas[0].Clave;
+        }
     }
 
     private TipoLavado? TipoSeleccion() => tipoSel switch
@@ -288,9 +307,11 @@
 
     private async Task Cargar()
     {
-        var lunes = DateOnly.ParseExact(semanaKey, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-        var domingo = lunes.AddDays(6);
-        var lunesPrev = lunes.AddDays(-7);
+        var lunesDesde = DateOnly.ParseExact(semanaDesdeKey, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var lunesHasta = DateOnly.ParseExact(semanaHastaKey, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (lunesDesde > lunesHasta) (lunesDesde, lunesHasta) = (lunesHasta, lunesDesde);
+        var domingoHasta = lunesHasta.AddDays(6);
+        var lunesPrev = lunesDesde.AddDays(-7);
 
         // Mapa operario -> turno asignado (para agrupar "Horas por operario").
         turnoOperarios = new(StringComparer.OrdinalIgnoreCase);
@@ -298,23 +319,28 @@
         foreach (var o in operarios)
             turnoOperarios[o.NombreCompleto] = o.Turno;
 
-        // Se carga la semana anterior solo para calcular la variación, pero NO se muestra:
-        // la tabla exhibe únicamente la fila de la semana pedida.
-        var conPrev = await Rep.ObtenerAsync(TipoSeleccion(), lunesPrev, domingo);
-        var semNum = ISOWeek.GetWeekOfYear(lunes.ToDateTime(TimeOnly.MinValue));
+        // Se carga la semana anterior al inicio del rango solo para el % var de la primera
+        // semana; esa semana previa NO se muestra.
+        var conPrev = await Rep.ObtenerAsync(TipoSeleccion(), lunesPrev, domingoHasta);
+
+        // Números de semana ISO incluidos en el rango pedido (sin la semana previa).
+        var semanasRango = new HashSet<int>();
+        for (var w = lunesDesde; w <= lunesHasta; w = w.AddDays(7))
+            semanasRango.Add(ISOWeek.GetWeekOfYear(w.ToDateTime(TimeOnly.MinValue)));
+
         metricas = Rep.CalcularMetricas(conPrev)
-            .Select(t => t with { Semanas = t.Semanas.Where(s => s.Semana == semNum).ToList() })
+            .Select(t => t with { Semanas = t.Semanas.Where(s => semanasRango.Contains(s.Semana)).ToList() })
             .Where(t => t.Semanas.Count > 0)
             .ToList();
 
-        lavados = conPrev.Where(l => l.Fecha >= lunes).ToList();
+        lavados = conPrev.Where(l => l.Fecha >= lunesDesde).ToList();
         horas = Rep.CalcularHorasPorOperario(lavados, turnoOperarios);
         frigorificos = Rep.LavadosPorFrigorifico(lavados);
 
-        // Nómina: activos totales vs cuántos trabajaron en cualquier circuito esa semana.
-        var todosSemana = await Rep.ObtenerAsync(null, lunes, domingo);
+        // Nómina: activos totales vs cuántos trabajaron en cualquier circuito en el período.
+        var todosRango = await Rep.ObtenerAsync(null, lunesDesde, domingoHasta);
         var activos = operarios.Where(o => o.Activo).Select(o => o.NombreCompleto);
-        nomina = Rep.NominaContraste(activos, todosSemana);
+        nomina = Rep.NominaContraste(activos, todosRango);
     }
 
     private async Task Exportar()
