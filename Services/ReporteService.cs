@@ -12,6 +12,7 @@ public record MetricaSemana(
     int Registros,   // cantidad total de registros del grupo (camiones + tareas); denominador de promedios.
     TimeSpan TotalHoras,
     TimeSpan HorasNetas,
+    TimeSpan HsHombre,   // suma de (duración × operarios) por lavado = horas-hombre reales.
     TimeSpan PromedioHoras,
     int TotalOperarios,
     double PromedioOperarios,
@@ -87,6 +88,8 @@ public class ReporteService
                     Total: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.TiempoTotal ?? TimeSpan.Zero)),
                     // Horas NETAS de lavado (Fin de Lavado − Inicio de Lavado), sin atraco/desatraco.
                     Neta: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.DurLavado ?? TimeSpan.Zero)),
+                    // Horas-hombre: por cada lavado, su tiempo total multiplicado por la cantidad de operarios.
+                    Hombre: g.Aggregate(TimeSpan.Zero, (acc, l) => acc + (l.TiempoTotal ?? TimeSpan.Zero) * l.OperariosUsados),
                     // Operarios DISTINTOS de la semana: una persona cuenta 1 aunque haga varios lavados.
                     Operarios: g.SelectMany(l => l.Operarios)
                                 .Select(o => o.Nombre)
@@ -109,7 +112,7 @@ public class ReporteService
                     varLav = (double)(cur.Lavados - prev.Lavados) / prev.Lavados;
             }
             semanas.Add(new MetricaSemana(
-                semana, cur.Lavados, cur.Cant, cur.Total, cur.Neta,
+                semana, cur.Lavados, cur.Cant, cur.Total, cur.Neta, cur.Hombre,
                 TimeSpan.FromSeconds(cur.Total.TotalSeconds / cur.Cant),
                 cur.Operarios, (double)cur.Asignaciones / cur.Cant, varHoras, varLav));
         }
@@ -320,10 +323,10 @@ public class ReporteService
         {
             var etiqueta = t.Turno == "Resumen" ? "RESUMEN (TOTAL)" : $"TURNO: {t.Turno}";
             ws.Cell(row, 1).Value = etiqueta;
-            ws.Range(row, 1, row, 9).Merge().Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.LightGray);
+            ws.Range(row, 1, row, 10).Merge().Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.LightGray);
             row++;
 
-            string[] headers = { "Semana", "Cantidad", "Total hs", "Neto hs", "Prom. hs", "Operarios", "Prom. op.", "% Var. hs", "% Var. cant." };
+            string[] headers = { "Semana", "Cantidad", "Total hs", "Neto hs", "HS hombre", "Prom. hs", "Operarios", "Prom. op.", "% Var. hs", "% Var. cant." };
             for (int c = 0; c < headers.Length; c++)
             {
                 ws.Cell(row, c + 1).Value = headers[c];
@@ -337,11 +340,12 @@ public class ReporteService
                 ws.Cell(row, 2).Value = s.Lavados;
                 ws.Cell(row, 3).Value = FmtDur(s.TotalHoras);
                 ws.Cell(row, 4).Value = FmtDur(s.HorasNetas);
-                ws.Cell(row, 5).Value = FmtDur(s.PromedioHoras);
-                ws.Cell(row, 6).Value = s.TotalOperarios;
-                ws.Cell(row, 7).Value = Math.Round(s.PromedioOperarios, 1);
-                ws.Cell(row, 8).Value = s.VarHoras.HasValue ? s.VarHoras.Value.ToString("P1", Es) : "—";
-                ws.Cell(row, 9).Value = s.VarLavados.HasValue ? s.VarLavados.Value.ToString("P1", Es) : "—";
+                ws.Cell(row, 5).Value = FmtDur(s.HsHombre);
+                ws.Cell(row, 6).Value = FmtDur(s.PromedioHoras);
+                ws.Cell(row, 7).Value = s.TotalOperarios;
+                ws.Cell(row, 8).Value = Math.Round(s.PromedioOperarios, 1);
+                ws.Cell(row, 9).Value = s.VarHoras.HasValue ? s.VarHoras.Value.ToString("P1", Es) : "—";
+                ws.Cell(row, 10).Value = s.VarLavados.HasValue ? s.VarLavados.Value.ToString("P1", Es) : "—";
                 row++;
             }
             row++; // fila en blanco entre bloques
