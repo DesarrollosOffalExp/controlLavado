@@ -230,6 +230,10 @@
         "• «hs» horas trabajadas y «d» días trabajados.\n" +
         "• Total hs: suma del período.";
 
+    // Primera semana con datos validados (Sem 26 = lunes 22/06/2026). No se muestran
+    // ni se comparan semanas anteriores a esta.
+    private static readonly DateOnly PrimeraSemana = new(2026, 6, 22);
+
     private string tipoSel = "Camion";
     private string semanaDesdeKey = "";
     private string semanaHastaKey = "";
@@ -286,6 +290,7 @@
                 var clave = lunes.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 return new OpcionSemana(clave, lunes, $"Semana {num} ({lunes:dd/MM}–{domingo:dd/MM})");
             })
+            .Where(o => o.Lunes >= PrimeraSemana)   // solo semanas validadas (26 en adelante)
             .ToList();
 
         // Por defecto, la semana actual (desde = hasta = semana en curso).
@@ -310,8 +315,12 @@
         var lunesDesde = DateOnly.ParseExact(semanaDesdeKey, "yyyy-MM-dd", CultureInfo.InvariantCulture);
         var lunesHasta = DateOnly.ParseExact(semanaHastaKey, "yyyy-MM-dd", CultureInfo.InvariantCulture);
         if (lunesDesde > lunesHasta) (lunesDesde, lunesHasta) = (lunesHasta, lunesDesde);
+        if (lunesDesde < PrimeraSemana) lunesDesde = PrimeraSemana;
+        if (lunesHasta < PrimeraSemana) lunesHasta = PrimeraSemana;
         var domingoHasta = lunesHasta.AddDays(6);
-        var lunesPrev = lunesDesde.AddDays(-7);
+        // La semana anterior solo se usa para el % var; nunca se baja de la primera validada.
+        var prevCand = lunesDesde.AddDays(-7);
+        var lunesPrev = prevCand >= PrimeraSemana ? prevCand : lunesDesde;
 
         // Mapa operario -> turno asignado (para agrupar "Horas por operario").
         turnoOperarios = new(StringComparer.OrdinalIgnoreCase);
