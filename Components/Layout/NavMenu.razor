@@ -4,7 +4,7 @@
 
 <nav class="topbar">
     <div class="topbar-row">
-        <div class="brand"><img src="favicon.png" alt="Offal" class="brand-logo" />Control de Lavados</div>
+        <div class="brand"><span class="brand-logo-circle"><img src="favicon.png" alt="Offal" /></span>Control de Lavados</div>
         <button class="hamburger @(menuOpen ? "abierto" : "")" @onclick="ToggleMenu"
                 aria-label="Menú" aria-expanded="@menuOpen">
             <span></span><span></span><span></span>
@@ -27,8 +27,15 @@
         <AuthorizeView>
             <Authorized>
                 <div class="userbox">
-                    <span class="user">@context.User.Identity?.Name</span>
-                    <a class="navlink salir" href="/logout">Salir</a>
+                    <span class="avatar">@Iniciales(context.User)</span>
+                    <span class="userinfo">
+                        <span class="user-nombre">@NombreMostrar(context.User)</span>
+                        <span class="user-rol">@RolMostrar(context.User)</span>
+                    </span>
+                    <a class="btn-logout" href="/logout">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <span>Cerrar sesión</span>
+                    </a>
                 </div>
             </Authorized>
         </AuthorizeView>
@@ -39,4 +46,30 @@
     private bool menuOpen;
     private void ToggleMenu() => menuOpen = !menuOpen;
     private void CerrarMenu() => menuOpen = false;
+
+    // Nombre a mostrar: preferimos el display name de Entra ("name"); si no, el
+    // Identity.Name (email), del que tomamos la parte antes de la @.
+    private static string NombreMostrar(System.Security.Claims.ClaimsPrincipal user)
+    {
+        var nombre = user.FindFirst("name")?.Value;
+        if (string.IsNullOrWhiteSpace(nombre)) nombre = user.Identity?.Name ?? "";
+        var at = nombre.IndexOf('@');
+        return at > 0 ? nombre.Substring(0, at) : nombre;
+    }
+
+    private static string Iniciales(System.Security.Claims.ClaimsPrincipal user)
+    {
+        var n = NombreMostrar(user).Trim();
+        if (string.IsNullOrEmpty(n)) return "?";
+        var parts = n.Split(new[] { ' ', '.', '_' }, System.StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return string.Concat(parts[0][0], parts[1][0]).ToUpper();
+        return n.Substring(0, System.Math.Min(2, n.Length)).ToUpper();
+    }
+
+    private static string RolMostrar(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Admin")) return "ADMIN";
+        if (user.IsInRole("Administrativo")) return "ADMINISTRATIVO";
+        return "OPERADOR";
+    }
 }
