@@ -67,6 +67,38 @@ h1, h2 { margin: 0; }
 .navlink:hover { color: var(--text); background: var(--panel-2); }
 .navlink.active { color: #fff; background: var(--accent); }
 
+/* ---------- Submenú desplegable en la barra (ej. Reportes) ---------- */
+.navdrop { position: relative; }
+.navdrop-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 170px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .5);
+    z-index: 40;
+}
+.navdrop:hover .navdrop-menu,
+.navdrop:focus-within .navdrop-menu { display: flex; }
+.navdrop-menu .navlink { white-space: nowrap; }
+@media (max-width: 820px) {
+    /* En el menú colapsado, el submenú se muestra en línea (indentado). */
+    .navdrop-menu {
+        display: flex;
+        position: static;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        padding: 2px 0 2px 14px;
+    }
+}
+
 .userbox { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .userbox .avatar {
     width: 32px;

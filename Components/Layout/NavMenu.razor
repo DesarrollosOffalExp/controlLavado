@@ -17,7 +17,13 @@
             <NavLink class="navlink" href="/hiel">Hiel</NavLink>
             <NavLink class="navlink" href="/varias">Varias</NavLink>
             <AuthorizeView Roles="Admin,Administrativo">
-                <NavLink class="navlink" href="/reportes">Reportes</NavLink>
+                <div class="navdrop">
+                    <NavLink class="navlink navdrop-btn" href="/reportes/resumen">Reportes ▾</NavLink>
+                    <div class="navdrop-menu">
+                        <NavLink class="navlink" href="/reportes/resumen">Resumen</NavLink>
+                        <NavLink class="navlink" href="/reportes/detalle">Detalle</NavLink>
+                    </div>
+                </div>
                 <NavLink class="navlink" href="/catalogos">Configuración</NavLink>
             </AuthorizeView>
             <AuthorizeView Roles="Admin">

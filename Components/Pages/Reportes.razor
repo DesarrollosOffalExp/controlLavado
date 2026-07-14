@@ -1,4 +1,5 @@
 @page "/reportes"
+@page "/reportes/{Seccion?}"
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Admin,Administrativo")]
 @using System.Globalization
@@ -51,6 +52,9 @@
         <p class="muted" style="margin-top:10px">@ResumenTexto</p>
     </section>
 
+    @* ── RESUMEN: nómina + métricas por turno ── *@
+    @if (!EsDetalle)
+    {
     <section class="card">
         <h2>@NominaTitulo <span class="info" tabindex="0" data-tip="@TipNomina">i</span></h2>
         <div class="nomina-cifras">
@@ -128,7 +132,11 @@
                 </div>
             </section>
         }
-
+    }
+    }
+    @* ── DETALLE: lavados por frigorífico + horas por operario ── *@
+    else
+    {
         @if (MostrarCantidad && frigorificos.Count > 0)
         {
             <section class="card">
@@ -201,6 +209,10 @@
 </div>
 
 @code {
+    // Sección activa: "resumen" (default) o "detalle". Viene de la ruta /reportes/{Seccion}.
+    [Parameter] public string? Seccion { get; set; }
+    private bool EsDetalle => string.Equals(Seccion, "detalle", StringComparison.OrdinalIgnoreCase);
+
     private static readonly CultureInfo Es = CultureInfo.GetCultureInfo("es-AR");
 
     // Textos de ayuda (tooltips) de cada reporte.
