@@ -65,7 +65,23 @@ h1, h2 { margin: 0; }
 .navlink:hover { color: var(--text); background: var(--panel-2); }
 .navlink.active { color: #fff; background: var(--accent); }
 
-.userbox { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.userbox { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.userinfo { display: flex; flex-direction: column; line-height: 1.15; }
+.user-name { color: var(--text); font-size: 13px; font-weight: 600; }
+.user-rol { color: var(--muted); font-size: 10px; }
 .user { color: var(--muted); font-size: 13px; font-weight: 600; }
 .navlink.salir { color: var(--danger); }
 

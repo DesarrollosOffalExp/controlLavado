@@ -4,7 +4,7 @@
 
 <nav class="topbar">
     <div class="topbar-row">
-        <div class="brand"><span class="brand-badge"><img src="favicon.png" alt="Offal" /></span>Control de Lavados</div>
+        <div class="brand"><a href="@PortalUrl" class="brand-badge" title="Ir al inicio de Offal"><img src="favicon.png" alt="Offal" /></a>Control de Lavados</div>
         <button class="hamburger @(menuOpen ? "abierto" : "")" @onclick="ToggleMenu"
                 aria-label="Menú" aria-expanded="@menuOpen">
             <span></span><span></span><span></span>
@@ -27,8 +27,12 @@
         <AuthorizeView>
             <Authorized>
                 <div class="userbox">
-                    <span class="user">@context.User.Identity?.Name</span>
-                    <a class="navlink salir" href="/logout">Salir</a>
+                    <span class="avatar">@Iniciales(context.User)</span>
+                    <span class="userinfo">
+                        <span class="user-name">@NombreUsuario(context.User)</span>
+                        <span class="user-rol">@Rol(context.User)</span>
+                    </span>
+                    <a class="navlink salir" href="/logout">Cerrar sesión</a>
                 </div>
             </Authorized>
         </AuthorizeView>
@@ -36,7 +40,28 @@
 </nav>
 
 @code {
+    // Portal / index general de Offal. Actualizar si el portal cambia de dominio.
+    private const string PortalUrl = "https://offal-hsb3c0gebjgbfmae.eastus-01.azurewebsites.net";
+
     private bool menuOpen;
     private void ToggleMenu() => menuOpen = !menuOpen;
     private void CerrarMenu() => menuOpen = false;
+
+    private static string NombreUsuario(System.Security.Claims.ClaimsPrincipal u)
+        => u.FindFirst("name")?.Value ?? u.Identity?.Name ?? "Usuario";
+
+    private static string Rol(System.Security.Claims.ClaimsPrincipal u)
+        => u.IsInRole("Admin") ? "Admin"
+         : u.IsInRole("Administrativo") ? "Administrativo"
+         : "Operario";
+
+    private static string Iniciales(System.Security.Claims.ClaimsPrincipal u)
+    {
+        var n = NombreUsuario(u).Trim();
+        var partes = n.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string ini = partes.Length >= 2
+            ? $"{partes[0][0]}{partes[1][0]}"
+            : (n.Length >= 2 ? n.Substring(0, 2) : n);
+        return ini.ToUpperInvariant();
+    }
 }
