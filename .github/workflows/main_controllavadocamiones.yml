@@ -9,8 +9,18 @@ on:
       - main
   workflow_dispatch:
 
+# Evita que dos deploys se pisen: cancela el anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Un solo job: se compila y se deploya en el mismo runner.
+# Antes eran dos jobs (build + deploy) y había que pasar el publish entero como
+# artifact, lo que consumía almacenamiento de Actions en CADA deploy (era el que
+# llenaba el 0.5 GB del plan). dotnet publish ya compila, así que el paso
+# "dotnet build" separado también se elimina por redundante.
 jobs:
-  build:
+  build-and-deploy:
     runs-on: windows-latest
     permissions:
       contents: read #This is required for actions/checkout
@@ -23,33 +33,14 @@ jobs:
         with:
           dotnet-version: '10.x'
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
-
       - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: dotnet publish -c Release -o "${{ github.workspace }}/publish"
 
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
-
-  deploy:
-    runs-on: windows-latest
-    needs: build
-    
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: .net-app
-      
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'controllavadocamiones'
           slot-name: 'Production'
-          package: .
+          package: "${{ github.workspace }}/publish"
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_52CC161B9BF543188E74991E14198DC5 }}
