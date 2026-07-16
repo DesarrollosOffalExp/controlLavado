@@ -1,12 +1,12 @@
 :root {
-    /* Paleta alineada al sistema de etiquetas (Sistemas Offal): navy + indigo + cian. */
-    --bg: #0a1124;
-    --panel: #111a2f;
-    --panel-2: #17223b;
-    --line: #233149;
-    --text: #e8edf5;
-    --muted: #8a97ad;
-    --accent: #6366f1;     /* índigo: botones primarios, nav activo, marca */
+    /* Paleta del portal/index (Sistemas Offal): teal oscuro + rojo de marca. */
+    --bg: #0c1c26;
+    --panel: #12242f;
+    --panel-2: #162b37;
+    --line: #23353f;
+    --text: #eef2f5;
+    --muted: #8ba0ab;
+    --accent: #c7163a;     /* rojo de marca: botones primarios, nav activo, marca */
     --accent-2: #26b6d9;   /* cian: links, info, en proceso */
     --danger: #e2574e;
     --warn: #f5a623;
@@ -34,7 +34,7 @@ h1, h2 { margin: 0; }
     padding: 0 24px;
     min-height: 64px;
     background: var(--panel);
-    border-bottom: 1px solid var(--line);
+    border-bottom: 2px solid var(--accent);
     position: sticky;
     top: 0;
     z-index: 20;
@@ -187,7 +187,7 @@ h1, h2 { margin: 0; }
     justify-content: center;
     padding: 24px;
     background:
-        radial-gradient(900px 500px at 50% -10%, rgba(99, 102, 241, .18), transparent),
+        radial-gradient(900px 500px at 50% -10%, rgba(199, 22, 58, .18), transparent),
         var(--bg);
 }
 .login-card {
@@ -273,7 +273,7 @@ h1, h2 { margin: 0; }
     font-size: 28px;
     font-weight: 700;
     line-height: 1;
-    box-shadow: 0 12px 30px rgba(99, 102, 241, .5);
+    box-shadow: 0 12px 30px rgba(199, 22, 58, .5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -334,7 +334,7 @@ h1, h2 { margin: 0; }
     align-items: center;
     gap: 4px;
     padding: 14px 12px;
-    background: var(--panel-2, rgba(99,102,241,.06));
+    background: var(--panel-2, rgba(199, 22, 58,.06));
     border: 1px solid var(--line);
     border-radius: 10px;
 }
@@ -539,7 +539,7 @@ textarea { resize: vertical; width: 100%; }
     z-index: 60;
     width: 340px;
     max-width: 78vw;
-    background: #0a1124;
+    background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 11px 13px;
