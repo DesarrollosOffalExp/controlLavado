@@ -131,6 +131,27 @@ h1, h2 { margin: 0; }
 }
 .btn-logout:hover { background: var(--panel-2); }
 
+/* Botón Inicio (ícono + texto) en la barra */
+.navlink-ico { display: inline-flex; align-items: center; gap: 7px; }
+
+/* Chip de usuario clickeable (despliega menú con Cerrar sesión) */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 5px 8px;
+    border-radius: 8px;
+    color: inherit;
+    font: inherit;
+}
+.chip:hover { background: var(--panel-2); }
+.chip-chevron { color: var(--muted); flex-shrink: 0; }
+.userdrop .navdrop-menu { right: 0; left: auto; min-width: 170px; }
+.userdrop .navdrop-menu .navlink { display: flex; align-items: center; gap: 8px; }
+
 /* Botón hamburguesa (solo mobile) */
 .hamburger {
     display: none;
