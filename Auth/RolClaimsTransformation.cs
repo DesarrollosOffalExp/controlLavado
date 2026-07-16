@@ -49,6 +49,10 @@ public class RolClaimsTransformation : IClaimsTransformation
         identity.AddClaim(new Claim("rol_resuelto", "1"));
         if (usuario is not null)
         {
+            // Nombre real (Nombre Apellido) para mostrar en la barra, igual que las otras apps.
+            if (!string.IsNullOrWhiteSpace(usuario.Nombre))
+                identity.AddClaim(new Claim("display_name", usuario.Nombre));
+
             if (usuario.Rol == RolUsuario.Admin)
                 identity.AddClaim(new Claim(ClaimTypes.Role, RolAdmin));
             else if (usuario.Rol == RolUsuario.Administrativo)

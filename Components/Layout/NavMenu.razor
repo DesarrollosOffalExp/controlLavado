@@ -33,15 +33,26 @@
         <AuthorizeView>
             <Authorized>
                 <div class="userbox">
-                    <span class="avatar">@Iniciales(context.User)</span>
-                    <span class="userinfo">
-                        <span class="user-nombre">@NombreMostrar(context.User)</span>
-                        <span class="user-rol">@RolMostrar(context.User)</span>
-                    </span>
-                    <a class="btn-logout" href="/logout">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                        <span>Cerrar sesión</span>
+                    <a href="@PortalUrl" class="navlink navlink-ico" title="Ir al inicio de Offal">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                        <span>Inicio</span>
                     </a>
+                    <div class="navdrop userdrop">
+                        <button type="button" class="chip">
+                            <span class="avatar">@Iniciales(context.User)</span>
+                            <span class="userinfo">
+                                <span class="user-nombre">@NombreMostrar(context.User)</span>
+                                <span class="user-rol">@RolMostrar(context.User)</span>
+                            </span>
+                            <svg class="chip-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        <div class="navdrop-menu">
+                            <a class="navlink salir" href="/logout">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                                Cerrar sesión
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </Authorized>
         </AuthorizeView>
@@ -56,10 +67,12 @@
     private void ToggleMenu() => menuOpen = !menuOpen;
     private void CerrarMenu() => menuOpen = false;
 
-    // Nombre a mostrar: preferimos el display name de Entra ("name"); si no, el
-    // Identity.Name (email), del que tomamos la parte antes de la @.
+    // Nombre a mostrar: primero el nombre real del padrón (claim "display_name" =
+    // Nombre Apellido); si no, el "name" de Entra o el Identity.Name (email) sin la @.
     private static string NombreMostrar(System.Security.Claims.ClaimsPrincipal user)
     {
+        var displayName = user.FindFirst("display_name")?.Value;
+        if (!string.IsNullOrWhiteSpace(displayName)) return displayName;
         var nombre = user.FindFirst("name")?.Value;
         if (string.IsNullOrWhiteSpace(nombre)) nombre = user.Identity?.Name ?? "";
         var at = nombre.IndexOf('@');
