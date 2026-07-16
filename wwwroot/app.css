@@ -16,7 +16,7 @@
 
 html, body {
     margin: 0;
-    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     background: var(--bg);
     color: var(--text);
     font-size: 14px;
@@ -42,7 +42,17 @@ h1, h2 { margin: 0; }
 .topbar-row { display: flex; align-items: center; flex: 0 0 auto; }
 .nav-collapse { display: flex; align-items: center; gap: 24px; flex: 1 1 auto; }
 .brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.brand-logo { height: 26px; width: 26px; object-fit: contain; }
+.brand-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.brand-badge img { height: 26px; width: 26px; object-fit: contain; display: block; }
 .links { display: flex; gap: 8px; flex-wrap: wrap; }
 .navlink {
     color: var(--muted);
